@@ -42,6 +42,17 @@
     transform: none;
   }
 }
+@keyframes sui-scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes sui-pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
 
 .sui-scrim {
   position: absolute;
@@ -66,6 +77,15 @@
     0 24px 64px rgba(0, 0, 0, 0.55),
     0 4px 12px rgba(0, 0, 0, 0.4);
   animation: sui-pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Exit, matching the entry timing and easing above. The renderer keeps the
+   modal mounted for the animation, see closeModal in renderer.tsx. */
+.sui-root--closing .sui-scrim {
+  animation: sui-scrim-out 0.18s ease both;
+}
+.sui-root--closing .sui-modal {
+  animation: sui-pop-out 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ---- standalone window (tray fallback) ---- */

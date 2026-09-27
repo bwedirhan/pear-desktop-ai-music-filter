@@ -10,6 +10,7 @@ import { ThemePaletteField } from './components/ThemePalette';
 import { listenStorePush, refreshStore, setIpc } from './state';
 
 const [open, setOpen] = createSignal(false);
+const [closing, setClosing] = createSignal(false);
 
 const GUIDE_SELECTORS = ['#guide-renderer', '#mini-guide-renderer'];
 const ITEMS_SELECTOR = 'ytmusic-guide-section-renderer[is-primary] > #items';
@@ -48,6 +49,16 @@ const injectButton = (guide: HTMLElement) => {
   items.appendChild(host);
 };
 
+/** Play the exit animation, then unmount. */
+const closeModal = () => {
+  setClosing(true);
+  // ponytail: mirrors the .sui-modal exit animation duration in styles.css
+  setTimeout(() => {
+    setOpen(false);
+    setClosing(false);
+  }, 220);
+};
+
 const mountModal = () => {
   if (modalDispose) return;
 
@@ -58,7 +69,7 @@ const mountModal = () => {
   modalDispose = render(
     () => (
       <Show when={open()}>
-        <SettingsModal onClose={() => setOpen(false)} />
+        <SettingsModal closing={closing()} onClose={closeModal} />
       </Show>
     ),
     modalHost,
@@ -76,6 +87,7 @@ const teardownUi = () => {
     .forEach((host) => host.remove());
 
   setOpen(false);
+  setClosing(false);
 };
 
 export const renderer = createRenderer({

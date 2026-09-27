@@ -52,6 +52,8 @@ const restartRequirementKey = (requirement: RestartRequirement) =>
 
 export const SettingsModal = (props: {
   onClose: () => void;
+  /** Set while the exit animation plays; the renderer unmounts afterwards. */
+  closing?: boolean;
   standalone?: boolean;
 }) => {
   const [active, setActive] = createSignal<string>('general');
@@ -332,7 +334,10 @@ export const SettingsModal = (props: {
   return (
     <div
       class="sui-root"
-      classList={{ 'sui-root--standalone': props.standalone }}
+      classList={{
+        'sui-root--standalone': props.standalone,
+        'sui-root--closing': props.closing,
+      }}
     >
       <Show when={!props.standalone}>
         <div class="sui-scrim" onClick={close} />
