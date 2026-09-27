@@ -290,12 +290,15 @@ export const SettingsModal = (props: {
     </div>
   );
 
-  /** A plugin restart is needed if the plugin or the changed field says so. */
-  const needsRestart = (
-    p: { meta: PluginMeta; groups: SettingsGroup[] },
+  /**
+   * Only the changed field decides this. A plugin's own `restartNeeded` is
+   * about enabling or disabling it (see togglePlugin), not about its settings:
+   * crossfade needs a restart to turn on, but not to change a fade duration.
+   */
+  const fieldNeedsRestart = (
+    p: { groups: SettingsGroup[] },
     key: string,
-  ) =>
-    p.meta.restartNeeded ||
+  ): boolean =>
     p.groups.some((group) =>
       group.fields.some((field) => field.key === key && field.restartNeeded),
     );
@@ -322,11 +325,17 @@ export const SettingsModal = (props: {
       restartNeeded={p.meta.restartNeeded}
       setSliderValue={(key, v) => {
         setPluginSliderValue(p.meta.id, key, v);
-        flagIfRestart({ type: 'plugin', id: p.meta.id }, needsRestart(p, key));
+        flagIfRestart(
+          { type: 'plugin', id: p.meta.id },
+          fieldNeedsRestart(p, key),
+        );
       }}
       setValue={(key, v) => {
         setPluginValue(p.meta.id, key, v);
-        flagIfRestart({ type: 'plugin', id: p.meta.id }, needsRestart(p, key));
+        flagIfRestart(
+          { type: 'plugin', id: p.meta.id },
+          fieldNeedsRestart(p, key),
+        );
       }}
     />
   );
