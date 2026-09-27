@@ -14,12 +14,20 @@ declare module 'vudio/umd/vudio' {
     verticalAlign: 'top' | 'middle' | 'bottom';
   }
 
+  interface LightingOptions extends WaveformOptions {
+    maxSize?: number;
+    lineWidth?: number;
+    prettify?: boolean;
+    dottify?: boolean;
+  }
+
   interface VudioOptions {
     effect?: 'waveform' | 'circlewave' | 'circlebar' | 'lighting';
     accuracy?: number;
     width?: number;
     height?: number;
     waveform?: WaveformOptions;
+    lighting?: LightingOptions;
   }
 
   class Vudio {
