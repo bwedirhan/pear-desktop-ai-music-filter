@@ -2,8 +2,18 @@ import { languageResources } from 'virtual:i18n';
 
 import { t } from '@/i18n';
 import { startingPages } from '@/providers/extracted-data';
+import { Platform } from '@/types/plugins';
 
-import type { SettingsGroup } from '@/types/settings';
+import { bridge, pickFiles } from '../state';
+
+import type {
+  ActionField,
+  SelectField,
+  SettingOption,
+  SettingsGroup,
+  SwitchField,
+  TextField,
+} from '@/types/settings';
 
 export type AppSectionId =
   | 'general'
@@ -22,21 +32,82 @@ export interface AppSection {
   groups: SettingsGroup[];
 }
 
-export const buildAppSections = async (): Promise<AppSection[]> => {
-  const langResources = await languageResources();
-  const languageOptions = Object.keys(langResources).map((lang) => {
-    const meta = langResources[lang].translation.language;
-    return {
-      value: lang,
-      label: () => `${meta?.name ?? lang} (${meta?.['local-name'] ?? lang})`,
-    };
-  });
+/** Label for an option living in the app's native menu, reused verbatim. */
+const menuLabel = (path: string) => () =>
+  t(`main.menu.options.submenu.${path}`);
 
-  const startingPageOptions = [
+const DESKTOP = Platform.Windows | Platform.macOS;
+
+interface FieldExtras {
+  description?: () => string;
+  restartNeeded?: boolean;
+  platform?: Platform;
+}
+
+const toggle = (
+  key: string,
+  label: () => string,
+  extras: FieldExtras = {},
+): SwitchField => ({ type: 'switch', key, label, ...extras });
+
+const text = (
+  key: string,
+  label: () => string,
+  extras: FieldExtras & { placeholder?: () => string } = {},
+): TextField => ({ type: 'text', key, label, ...extras });
+
+const select = (
+  key: string,
+  label: () => string,
+  options: SettingOption[] | (() => Promise<SettingOption[]>),
+  extras: FieldExtras & { variant?: SelectField['variant'] } = {},
+): SelectField => ({ type: 'select', key, label, options, ...extras });
+
+const action = (
+  key: string,
+  label: () => string,
+  buttonLabel: () => string,
+  onClick: ActionField['onClick'],
+  extras: FieldExtras = {},
+): ActionField => ({
+  type: 'action',
+  key,
+  label,
+  buttonLabel,
+  onClick,
+  ...extras,
+});
+
+/** Options whose value is only read when the app (re)starts. */
+const AT_STARTUP = { restartNeeded: true } satisfies FieldExtras;
+
+const buildLanguageOptions = async (): Promise<SettingOption[]> => {
+  const langResources = await languageResources();
+  return Object.keys(langResources)
+    .map((lang) => {
+      const meta = langResources[lang].translation.language;
+      return {
+        value: lang,
+        label: () => `${meta?.name ?? lang} (${meta?.['local-name'] ?? lang})`,
+      };
+    })
+    .sort((a, b) => a.label().localeCompare(b.label()));
+};
+
+const buildThemeOptions = async (): Promise<SettingOption[]> => {
+  const { themes } = await bridge.themes();
+  return [
     {
       value: '',
-      label: () => t('main.menu.options.submenu.starting-page.unset'),
+      label: menuLabel('visual-tweaks.submenu.theme.submenu.no-theme'),
     },
+    ...themes.map((theme) => ({ value: theme.id, label: () => theme.name })),
+  ];
+};
+
+export const buildAppSections = (): AppSection[] => {
+  const startingPageOptions: SettingOption[] = [
+    { value: '', label: menuLabel('starting-page.unset') },
     ...Object.keys(startingPages).map((name) => ({
       value: name,
       label: () => name,
@@ -53,35 +124,40 @@ export const buildAppSections = async (): Promise<AppSection[]> => {
         {
           title: () => t('settings-ui.groups.updates-session'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.autoUpdates',
-              label: () => t('main.menu.options.submenu.auto-update'),
-            },
-            {
-              type: 'switch',
-              key: 'options.resumeOnStart',
-              label: () => t('main.menu.options.submenu.resume-on-start'),
-            },
+            toggle('options.autoUpdates', menuLabel('auto-update')),
+            toggle('options.resumeOnStart', menuLabel('resume-on-start'), {
+              restartNeeded: true,
+            }),
           ],
         },
         {
           title: () => t('settings-ui.groups.startup-language'),
           fields: [
-            {
-              type: 'select',
-              key: 'options.startingPage',
-              label: () => t('main.menu.options.submenu.starting-page.label'),
-              options: startingPageOptions,
-            },
-            {
-              type: 'select',
-              variant: 'dropdown',
-              key: 'options.language',
-              label: () => t('main.menu.options.submenu.language.label'),
-              restartNeeded: true,
-              options: languageOptions,
-            },
+            select(
+              'options.startingPage',
+              menuLabel('starting-page.label'),
+              startingPageOptions,
+              { variant: 'dropdown', ...AT_STARTUP },
+            ),
+            select(
+              'options.language',
+              menuLabel('language.label'),
+              buildLanguageOptions,
+              { variant: 'dropdown', ...AT_STARTUP },
+            ),
+          ],
+        },
+        {
+          title: menuLabel('shared-links.label'),
+          fields: [
+            toggle(
+              'options.stripMusicFromSharedLinks',
+              menuLabel('shared-links.submenu.strip-music'),
+            ),
+            toggle(
+              'options.stripSIFromSharedLinks',
+              menuLabel('shared-links.submenu.strip-si'),
+            ),
           ],
         },
       ],
@@ -95,66 +171,98 @@ export const buildAppSections = async (): Promise<AppSection[]> => {
         {
           title: () => t('settings-ui.groups.interface'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.removeUpgradeButton',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.visual-tweaks.submenu.remove-upgrade-button',
-                ),
-            },
-            {
-              type: 'select',
-              key: 'options.likeButtons',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.visual-tweaks.submenu.like-buttons.label',
-                ),
-              options: [
+            toggle(
+              'options.removeUpgradeButton',
+              menuLabel('visual-tweaks.submenu.remove-upgrade-button'),
+              AT_STARTUP,
+            ),
+            toggle(
+              'options.useYtmIcons',
+              menuLabel('visual-tweaks.submenu.use-ytm-icons'),
+            ),
+            select(
+              'options.likeButtons',
+              menuLabel('visual-tweaks.submenu.like-buttons.label'),
+              [
                 {
                   value: '',
-                  label: () =>
-                    t(
-                      'main.menu.options.submenu.visual-tweaks.submenu.like-buttons.default',
-                    ),
+                  label: menuLabel(
+                    'visual-tweaks.submenu.like-buttons.default',
+                  ),
                 },
                 {
                   value: 'force',
-                  label: () =>
-                    t(
-                      'main.menu.options.submenu.visual-tweaks.submenu.like-buttons.force-show',
-                    ),
+                  label: menuLabel(
+                    'visual-tweaks.submenu.like-buttons.force-show',
+                  ),
                 },
                 {
                   value: 'hide',
-                  label: () =>
-                    t(
-                      'main.menu.options.submenu.visual-tweaks.submenu.like-buttons.hide',
-                    ),
+                  label: menuLabel('visual-tweaks.submenu.like-buttons.hide'),
                 },
               ],
-            },
-            {
-              type: 'switch',
-              key: 'options.swapLikeButtonsOrder',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.visual-tweaks.submenu.like-buttons.swap',
-                ),
-            },
+              AT_STARTUP,
+            ),
+            toggle(
+              'options.swapLikeButtonsOrder',
+              menuLabel('visual-tweaks.submenu.like-buttons.swap'),
+              AT_STARTUP,
+            ),
           ],
         },
         {
           title: () => t('settings-ui.groups.window-title'),
           fields: [
-            {
-              type: 'text',
-              key: 'options.customWindowTitle',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.visual-tweaks.submenu.custom-window-title.label',
+            text(
+              'options.customWindowTitle',
+              menuLabel('visual-tweaks.submenu.custom-window-title.label'),
+              {
+                ...AT_STARTUP,
+                placeholder: menuLabel(
+                  'visual-tweaks.submenu.custom-window-title.prompt.placeholder',
                 ),
+              },
+            ),
+          ],
+        },
+        {
+          title: menuLabel('visual-tweaks.submenu.theme.label'),
+          fields: [
+            select(
+              'options.theme',
+              menuLabel('visual-tweaks.submenu.theme.label'),
+              buildThemeOptions,
+              { variant: 'dropdown' },
+            ),
+            {
+              type: 'custom',
+              key: 'options.themeOverrides',
+              label: menuLabel(
+                'visual-tweaks.submenu.theme.submenu.colors.label',
+              ),
+              component: 'settings-ui.themePalette',
             },
+            action(
+              '__theme-import',
+              menuLabel('visual-tweaks.submenu.theme.submenu.import-css-file'),
+              () => t('settings-ui.choose-files'),
+              async () => {
+                const paths = await pickFiles([
+                  { name: 'CSS Files', extensions: ['css'] },
+                ]);
+                if (paths.length) await bridge.importThemeCss(paths);
+              },
+            ),
+            action(
+              '__theme-folder',
+              menuLabel(
+                'visual-tweaks.submenu.theme.submenu.open-themes-folder',
+              ),
+              menuLabel(
+                'visual-tweaks.submenu.theme.submenu.open-themes-folder',
+              ),
+              () => bridge.openThemesFolder(),
+            ),
           ],
         },
       ],
@@ -168,64 +276,60 @@ export const buildAppSections = async (): Promise<AppSection[]> => {
         {
           title: () => t('settings-ui.groups.window'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.alwaysOnTop',
-              label: () => t('main.menu.options.submenu.always-on-top'),
-            },
-            {
-              type: 'switch',
-              key: 'options.hideMenu',
-              label: () => t('main.menu.options.submenu.hide-menu.label'),
-              restartNeeded: true,
-            },
+            toggle('options.alwaysOnTop', menuLabel('always-on-top')),
+            toggle('options.hideMenu', menuLabel('hide-menu.label'), {
+              ...AT_STARTUP,
+              platform: Platform.Windows | Platform.Linux,
+            }),
           ],
         },
         {
           title: () => t('settings-ui.groups.system'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.startAtLogin',
-              label: () => t('main.menu.options.submenu.start-at-login'),
-            },
+            toggle('options.startAtLogin', menuLabel('start-at-login'), {
+              platform: DESKTOP,
+            }),
+            toggle(
+              'options.forceSmtc',
+              menuLabel('advanced-options.submenu.force-smtc'),
+              { ...AT_STARTUP, platform: Platform.Windows },
+            ),
           ],
         },
         {
-          title: () => t('main.menu.options.submenu.tray.label'),
+          title: menuLabel('tray.label'),
           fields: [
-            {
-              type: 'select',
-              key: 'options.__trayMode',
-              label: () => t('main.menu.options.submenu.tray.label'),
-              options: [
+            select(
+              'options.__trayMode',
+              menuLabel('tray.label'),
+              [
                 {
                   value: 'off',
-                  label: () =>
-                    t('main.menu.options.submenu.tray.submenu.disabled'),
+                  label: menuLabel('tray.submenu.disabled'),
                 },
                 {
                   value: 'show',
-                  label: () =>
-                    t(
-                      'main.menu.options.submenu.tray.submenu.enabled-and-show-app',
-                    ),
+                  label: menuLabel('tray.submenu.enabled-and-show-app'),
                 },
                 {
                   value: 'hide',
-                  label: () =>
-                    t(
-                      'main.menu.options.submenu.tray.submenu.enabled-and-hide-app',
-                    ),
+                  label: menuLabel('tray.submenu.enabled-and-hide-app'),
                 },
               ],
-            },
-            {
-              type: 'switch',
-              key: 'options.trayClickPlayPause',
-              label: () =>
-                t('main.menu.options.submenu.tray.submenu.play-pause-on-click'),
-            },
+              AT_STARTUP,
+            ),
+            toggle(
+              'options.trayClickPlayPause',
+              menuLabel('tray.submenu.play-pause-on-click'),
+            ),
+            toggle(
+              'options.trayMoveToCurrentDesktop',
+              menuLabel('tray.submenu.move-to-current-desktop'),
+            ),
+            toggle(
+              'options.trayForceWhiteIcons',
+              menuLabel('tray.submenu.force-white-icons'),
+            ),
           ],
         },
       ],
@@ -239,63 +343,59 @@ export const buildAppSections = async (): Promise<AppSection[]> => {
         {
           title: () => t('settings-ui.groups.network'),
           fields: [
-            {
-              type: 'text',
-              key: 'options.proxy',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.set-proxy.label',
+            text(
+              'options.proxy',
+              menuLabel('advanced-options.submenu.set-proxy.label'),
+              {
+                ...AT_STARTUP,
+                placeholder: menuLabel(
+                  'advanced-options.submenu.set-proxy.prompt.placeholder',
                 ),
-              placeholder: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.set-proxy.prompt.placeholder',
-                ),
-              restartNeeded: true,
-            },
-            {
-              type: 'switch',
-              key: 'options.overrideUserAgent',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.override-user-agent',
-                ),
-              restartNeeded: true,
-            },
+              },
+            ),
+            toggle(
+              'options.overrideUserAgent',
+              menuLabel('advanced-options.submenu.override-user-agent'),
+              AT_STARTUP,
+            ),
           ],
         },
         {
           title: () => t('settings-ui.groups.performance'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.disableHardwareAcceleration',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.disable-hardware-acceleration',
-                ),
-              restartNeeded: true,
-            },
-            {
-              type: 'switch',
-              key: 'options.autoResetAppCache',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.auto-reset-app-cache',
-                ),
-            },
+            toggle(
+              'options.disableHardwareAcceleration',
+              menuLabel(
+                'advanced-options.submenu.disable-hardware-acceleration',
+              ),
+              AT_STARTUP,
+            ),
+            toggle(
+              'options.autoResetAppCache',
+              menuLabel('advanced-options.submenu.auto-reset-app-cache'),
+              AT_STARTUP,
+            ),
           ],
         },
         {
           title: () => t('settings-ui.groups.configuration'),
           fields: [
-            {
-              type: 'switch',
-              key: 'options.restartOnConfigChanges',
-              label: () =>
-                t(
-                  'main.menu.options.submenu.advanced-options.submenu.restart-on-config-changes',
-                ),
-            },
+            toggle(
+              'options.restartOnConfigChanges',
+              menuLabel('advanced-options.submenu.restart-on-config-changes'),
+            ),
+            action(
+              '__toggle-devtools',
+              menuLabel('advanced-options.submenu.toggle-dev-tools'),
+              menuLabel('advanced-options.submenu.toggle-dev-tools'),
+              () => bridge.toggleDevTools(),
+            ),
+            action(
+              '__edit-config',
+              menuLabel('advanced-options.submenu.edit-config-json'),
+              menuLabel('advanced-options.submenu.edit-config-json'),
+              () => bridge.configEdit(),
+            ),
           ],
         },
       ],

@@ -40,7 +40,6 @@ interface PluginMeta {
   restartNeeded: boolean;
   config: Record<string, unknown>;
   groups: SettingsGroup[];
-  hasSettings: boolean;
 }
 
 const matches = (query: string, ...parts: (string | undefined)[]) =>
@@ -66,45 +65,42 @@ export const SettingsModal = (props: {
   let searchInputRef: HTMLInputElement | undefined;
   let previousFocus: HTMLElement | null = null;
 
-  const [appSections] = createResource(async () =>
-    (await buildAppSections()).map((section) => ({
+  const [appSections] = createResource(() =>
+    buildAppSections().map((section) => ({
       ...section,
       groups: filterGroupsByPlatform(section.groups),
     })),
   );
   const [appMeta] = createResource(() => bridge.appMeta());
-
   const [rendererDefs] = createResource(() => rendererPlugins());
-  const resolveComponent = (id: string) => {
-    const dot = id.indexOf('.');
-    if (dot < 0) return undefined;
-    const pluginId = id.slice(0, dot);
-    const name = id.slice(dot + 1);
-    const def = rendererDefs()?.[pluginId];
-    const renderer = def?.renderer;
-    if (!renderer || typeof renderer === 'function') return undefined;
-    return renderer.components?.[name];
-  };
+
   const [plugins] = createResource<PluginMeta[]>(async () => {
     const stubs = await allPlugins();
     return Object.entries(stubs)
       .filter(([id]) => id !== 'settings-ui')
-      .map(([id, def]) => {
-        const groups = def.settings
+      .map(([id, def]) => ({
+        id,
+        name: def.name?.() ?? id,
+        description: def.description?.(),
+        restartNeeded: Boolean(def.restartNeeded),
+        config: (def.config ?? { enabled: false }) as Record<string, unknown>,
+        groups: def.settings
           ? filterGroupsByPlatform(toSettingsGroups(def.settings))
-          : [];
-        return {
-          id,
-          name: def.name?.() ?? id,
-          description: def.description?.(),
-          restartNeeded: Boolean(def.restartNeeded),
-          config: (def.config ?? { enabled: false }) as Record<string, unknown>,
-          groups,
-          hasSettings: groups.length > 0,
-        } satisfies PluginMeta;
-      })
+          : [],
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
   });
+
+  /** Resolve a `"<pluginId>.<name>"` custom field component. */
+  const resolveComponent = (id: string) => {
+    const dot = id.indexOf('.');
+    if (dot < 0) return undefined;
+
+    const renderer = rendererDefs()?.[id.slice(0, dot)]?.renderer;
+    if (!renderer || typeof renderer === 'function') return undefined;
+
+    return renderer.components?.[id.slice(dot + 1)];
+  };
 
   onMount(() => {
     bridge.restartSessionOpen();
@@ -123,20 +119,16 @@ export const SettingsModal = (props: {
     });
   });
 
-  const enabledPluginList = createMemo(() => {
-    const list = plugins() ?? [];
+  const enabledPlugins = createMemo(() => {
     const snap = store();
     if (!snap) return [] as PluginMeta[];
-    return list.filter(
+
+    return (plugins() ?? []).filter(
       (p) =>
         (snap.plugins as Record<string, { enabled?: boolean }>)[p.id]
           ?.enabled ?? (p.config.enabled as boolean),
     );
   });
-  const enabledCount = createMemo(() => enabledPluginList().length);
-  const enabledPluginNames = createMemo(() =>
-    enabledPluginList().map((p) => p.name),
-  );
 
   const flagIfRestart = (
     requirement: RestartRequirement,
@@ -155,17 +147,21 @@ export const SettingsModal = (props: {
     );
   };
 
-  const close = () => {
+  const close = async () => {
     if (isClosing) return;
     isClosing = true;
 
     const requirements = restartRequirements();
     // Flush debounced slider writes before the window closes so recent
     // changes aren't lost.
-    flushPendingPluginSliderWrites().finally(() => {
-      props.onClose();
-      bridge.restartSessionClose(requirements);
-    });
+    await flushPendingPluginSliderWrites();
+    props.onClose();
+    bridge.restartSessionClose(requirements);
+  };
+
+  const closeNow = async () => {
+    await flushPendingPluginSliderWrites();
+    bridge.restart();
   };
 
   // ---- app-option value plumbing ----
@@ -208,13 +204,11 @@ export const SettingsModal = (props: {
 
   const headerTitle = () => {
     if (isSearching()) return t('settings-ui.search-results');
-    if (active() === 'plugins') return t('settings-ui.sections.plugins.label');
     return currentSection()?.label() ?? '';
   };
   const headerSub = () => {
     if (isSearching())
       return t('settings-ui.search-matching', { query: query().trim() });
-    if (active() === 'plugins') return t('settings-ui.sections.plugins.sub');
     return currentSection()?.sub() ?? '';
   };
 
@@ -222,6 +216,7 @@ export const SettingsModal = (props: {
   const searchAppGroups = createMemo(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [] as { title: string; group: SettingsGroup }[];
+
     const out: { title: string; group: SettingsGroup }[] = [];
     for (const section of sections()) {
       for (const group of section.groups) {
@@ -241,13 +236,14 @@ export const SettingsModal = (props: {
   const searchPlugins = createMemo(() => {
     const q = query().trim().toLowerCase();
     if (!q) return [] as { meta: PluginMeta; groups: SettingsGroup[] }[];
+
     const out: { meta: PluginMeta; groups: SettingsGroup[] }[] = [];
     for (const meta of plugins() ?? []) {
-      const nameHit = matches(q, meta.name, meta.description);
-      if (nameHit) {
+      if (matches(q, meta.name, meta.description)) {
         out.push({ meta, groups: meta.groups });
         continue;
       }
+
       const groups = meta.groups
         .map((g) => ({
           ...g,
@@ -266,11 +262,7 @@ export const SettingsModal = (props: {
     searchAppGroups().length === 0 &&
     searchPlugins().length === 0;
 
-  const AppGroupView = (p: {
-    title?: string;
-    group: SettingsGroup;
-    sectionId?: string;
-  }) => (
+  const AppGroupView = (p: { title?: string; group: SettingsGroup }) => (
     <div class="sui-group">
       <Show when={p.title}>
         <div class="sui-group__title">{p.title}</div>
@@ -280,9 +272,13 @@ export const SettingsModal = (props: {
           {(field) => (
             <SettingsField
               accessors={{
-                getValue: (key) => appVal(key),
-                setValue: (key, v) => setAppValue(key, v),
-                setSliderValue: (key, v) => setAppValue(key, v),
+                getValue: appVal,
+                setValue: (key, v) => {
+                  setAppValue(key, v);
+                },
+                setSliderValue: (key, v) => {
+                  setAppValue(key, v);
+                },
               }}
               field={field}
               onChange={(v) =>
@@ -295,6 +291,42 @@ export const SettingsModal = (props: {
         </For>
       </div>
     </div>
+  );
+
+  /** A plugin restart is needed if the plugin or the changed field says so. */
+  const needsRestart = (
+    p: { meta: PluginMeta; groups: SettingsGroup[] },
+    key: string,
+  ) =>
+    p.meta.restartNeeded ||
+    p.groups.some((group) =>
+      group.fields.some((field) => field.key === key && field.restartNeeded),
+    );
+
+  const PluginCardView = (p: { meta: PluginMeta; groups: SettingsGroup[] }) => (
+    <PluginCard
+      description={p.meta.description}
+      enabled={pluginEnabled(p.meta)}
+      expanded={expanded() === p.meta.id}
+      getValue={(key) => pluginVal(p.meta, key)}
+      groups={p.groups}
+      hasSettings={p.groups.length > 0}
+      name={p.meta.name}
+      onExpand={() =>
+        setExpanded((cur) => (cur === p.meta.id ? null : p.meta.id))
+      }
+      onToggle={(v) => togglePlugin(p.meta, v)}
+      resolveComponent={resolveComponent}
+      restartNeeded={p.meta.restartNeeded}
+      setSliderValue={(key, v) => {
+        setPluginSliderValue(p.meta.id, key, v);
+        flagIfRestart({ type: 'plugin', id: p.meta.id }, needsRestart(p, key));
+      }}
+      setValue={(key, v) => {
+        setPluginValue(p.meta.id, key, v);
+        flagIfRestart({ type: 'plugin', id: p.meta.id }, needsRestart(p, key));
+      }}
+    />
   );
 
   return (
@@ -345,7 +377,7 @@ export const SettingsModal = (props: {
                   <span>{section.label()}</span>
                   <Show when={section.id === 'plugins'}>
                     <span class="sui-nav__count">
-                      {enabledCount()}/{(plugins() ?? []).length}
+                      {enabledPlugins().length}/{(plugins() ?? []).length}
                     </span>
                   </Show>
                 </button>
@@ -357,7 +389,10 @@ export const SettingsModal = (props: {
             <span>v{appMeta()?.version ?? ''}</span>
             <a
               href="#"
-              onClick={(e) => (e.preventDefault(), bridge.configEdit())}
+              onClick={(e) => {
+                e.preventDefault();
+                bridge.configEdit();
+              }}
             >
               {t('settings-ui.edit-config')}
             </a>
@@ -394,15 +429,7 @@ export const SettingsModal = (props: {
               >
                 {t('settings-ui.later')}
               </button>
-              <button
-                class="sui-restart__now"
-                onClick={() =>
-                  flushPendingPluginSliderWrites().finally(() =>
-                    bridge.restart(),
-                  )
-                }
-                type="button"
-              >
+              <button class="sui-restart__now" onClick={closeNow} type="button">
                 {t('settings-ui.restart-now')}
               </button>
             </div>
@@ -424,33 +451,7 @@ export const SettingsModal = (props: {
                 </For>
                 <For each={searchPlugins()}>
                   {(block) => (
-                    <PluginCard
-                      description={block.meta.description}
-                      enabled={pluginEnabled(block.meta)}
-                      expanded={block.groups.length > 0}
-                      getValue={(key) => pluginVal(block.meta, key)}
-                      groups={block.groups}
-                      hasSettings={block.groups.length > 0}
-                      name={block.meta.name}
-                      onExpand={() => {}}
-                      onToggle={(v) => togglePlugin(block.meta, v)}
-                      resolveComponent={resolveComponent}
-                      restartNeeded={block.meta.restartNeeded}
-                      setSliderValue={(key, v) => {
-                        setPluginSliderValue(block.meta.id, key, v);
-                        flagIfRestart(
-                          { type: 'plugin', id: block.meta.id },
-                          block.meta.restartNeeded,
-                        );
-                      }}
-                      setValue={(key, v) => {
-                        setPluginValue(block.meta.id, key, v);
-                        flagIfRestart(
-                          { type: 'plugin', id: block.meta.id },
-                          block.meta.restartNeeded,
-                        );
-                      }}
-                    />
+                    <PluginCardView groups={block.groups} meta={block.meta} />
                   )}
                 </For>
               </Show>
@@ -466,65 +467,14 @@ export const SettingsModal = (props: {
                 <Show when={active() === 'plugins'}>
                   <For each={plugins()}>
                     {(meta) => (
-                      <PluginCard
-                        description={meta.description}
-                        enabled={pluginEnabled(meta)}
-                        expanded={expanded() === meta.id}
-                        getValue={(key) => pluginVal(meta, key)}
-                        groups={meta.groups}
-                        hasSettings={meta.hasSettings}
-                        name={meta.name}
-                        onExpand={() =>
-                          setExpanded((cur) =>
-                            cur === meta.id ? null : meta.id,
-                          )
-                        }
-                        onToggle={(v) => togglePlugin(meta, v)}
-                        resolveComponent={resolveComponent}
-                        restartNeeded={meta.restartNeeded}
-                        setSliderValue={(key, v) => {
-                          setPluginSliderValue(meta.id, key, v);
-                          flagIfRestart(
-                            { type: 'plugin', id: meta.id },
-                            meta.restartNeeded,
-                          );
-                        }}
-                        setValue={(key, v) => {
-                          setPluginValue(meta.id, key, v);
-                          flagIfRestart(
-                            { type: 'plugin', id: meta.id },
-                            meta.restartNeeded,
-                          );
-                        }}
-                      />
+                      <PluginCardView groups={meta.groups} meta={meta} />
                     )}
                   </For>
                 </Show>
 
-                <Show when={active() === 'advanced'}>
-                  <div class="sui-actions">
-                    <button
-                      class="sui-outlinedbtn"
-                      onClick={() => bridge.toggleDevTools()}
-                      type="button"
-                    >
-                      {t(
-                        'main.menu.options.submenu.advanced-options.submenu.toggle-dev-tools',
-                      )}
-                    </button>
-                    <button
-                      class="sui-outlinedbtn"
-                      onClick={() => bridge.configEdit()}
-                      type="button"
-                    >
-                      {t('settings-ui.edit-config')}
-                    </button>
-                  </div>
-                </Show>
-
                 <Show when={active() === 'about'}>
                   <AboutSection
-                    enabledPlugins={enabledPluginNames()}
+                    enabledPlugins={enabledPlugins().map((p) => p.name)}
                     meta={appMeta()}
                   />
                 </Show>

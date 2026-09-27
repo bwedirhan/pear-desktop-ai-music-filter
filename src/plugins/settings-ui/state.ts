@@ -1,6 +1,8 @@
+import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 
 import type { defaultConfig } from '@/config/defaults';
+import type { ThemeState } from '@/themes/types';
 import type { RendererContext } from '@/types/contexts';
 import type { RestartRequirement } from '@/types/restart';
 
@@ -34,16 +36,11 @@ export const setIpc = (value: Ipc) => {
   ipc = value;
 };
 
-const pendingPluginWrites = new Map<
-  string,
-  { timeout: ReturnType<typeof setTimeout>; write: () => Promise<unknown> }
->();
-const PLUGIN_SLIDER_DEBOUNCE_MS = 200;
-
 export const bridge = {
   loadStore: () => ipc!.invoke('ytmd-sui:load-store') as Promise<StoreShape>,
+  /** Resolves false when the write was refused (e.g. theme consent denied). */
   optionSet: (key: string, value: unknown) =>
-    ipc!.invoke('ytmd-sui:option-set', key, value),
+    ipc!.invoke('ytmd-sui:option-set', key, value) as Promise<boolean>,
   pluginToggle: (id: string, enabled: boolean) =>
     ipc!.invoke('ytmd-sui:plugin-toggle', id, enabled),
   // Plugin field writes ride the app's existing per-plugin config channel.
@@ -54,12 +51,22 @@ export const bridge = {
     ipc!.invoke('ytmd-sui:restart-session-close', changes),
   pickPath: (options: object) =>
     ipc!.invoke('ytmd-sui:pick-path', options) as Promise<string | undefined>,
+  pickPaths: (options: object) =>
+    ipc!.invoke('ytmd-sui:pick-paths', options) as Promise<string[]>,
   configEdit: () => ipc!.invoke('ytmd-sui:config-edit'),
   toggleDevTools: () => ipc!.invoke('ytmd-sui:toggle-devtools'),
   restart: () => ipc!.invoke('ytmd-sui:restart'),
   appMeta: () => ipc!.invoke('ytmd-sui:app-meta') as Promise<AppMeta>,
   openExternal: (url: string) => ipc!.invoke('ytmd-sui:open-external', url),
   checkUpdates: () => ipc!.invoke('ytmd-sui:check-updates'),
+  themes: () => ipc!.invoke('ytmd-sui:themes') as Promise<ThemeState>,
+  setThemeColor: (themeId: string, key: string, value: string) =>
+    ipc!.invoke('ytmd-sui:theme-color-set', themeId, key, value),
+  resetThemeColors: (themeId: string) =>
+    ipc!.invoke('ytmd-sui:theme-colors-reset', themeId),
+  importThemeCss: (paths: string[]) =>
+    ipc!.invoke('ytmd-sui:import-theme-css', paths),
+  openThemesFolder: () => ipc!.invoke('ytmd-sui:open-themes-folder'),
 };
 
 export const refreshStore = async () => {
@@ -74,11 +81,6 @@ export const listenStorePush = () => {
 
 // ---- value helpers ----
 
-const clone = <T>(value: T): T =>
-  typeof structuredClone === 'function'
-    ? structuredClone(value)
-    : (JSON.parse(JSON.stringify(value)) as T);
-
 export const getByPath = (obj: unknown, path: string): unknown =>
   path
     .split('.')
@@ -90,64 +92,38 @@ export const getByPath = (obj: unknown, path: string): unknown =>
       obj,
     );
 
+/** Writes `value` at a dotted path, creating the intermediate objects. */
+const setByPath = <T extends object>(
+  root: T,
+  path: string,
+  value: unknown,
+): T => {
+  const keys = path.split('.');
+  let node = root as Record<string, unknown>;
+
+  for (const key of keys.slice(0, -1)) {
+    if (typeof node[key] !== 'object' || node[key] === null) node[key] = {};
+    node = node[key] as Record<string, unknown>;
+  }
+
+  node[keys[keys.length - 1]] = value;
+  return root;
+};
+
 /** Optimistically patch a dotted path in the local store signal. */
 export const patchLocal = (path: string, value: unknown) => {
   const current = store();
   if (!current) return;
-  const next = clone(current) as unknown as Record<string, unknown>;
-  const keys = path.split('.');
-  let node = next;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    if (typeof node[key] !== 'object' || node[key] === null) node[key] = {};
-    node = node[key] as Record<string, unknown>;
-  }
-  node[keys[keys.length - 1]] = value;
-  setStore(next as unknown as StoreShape);
-};
-
-// ---- shallow deep-merge for plugin defaults + stored overrides ----
-export const deepMergeLite = <T extends Record<string, unknown>>(
-  base: T,
-  override: Record<string, unknown> | undefined,
-): T => {
-  if (!override) return clone(base);
-  const out = clone(base) as Record<string, unknown>;
-  for (const [key, value] of Object.entries(override)) {
-    if (
-      value &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      out[key] &&
-      typeof out[key] === 'object' &&
-      !Array.isArray(out[key])
-    ) {
-      out[key] = deepMergeLite(
-        out[key] as Record<string, unknown>,
-        value as Record<string, unknown>,
-      );
-    } else {
-      out[key] = value;
-    }
-  }
-  return out as T;
+  setStore(setByPath(structuredClone(current), path, value));
 };
 
 /** Build a nested partial object from a dotted key + value. */
-export const nestPartial = (
-  path: string,
-  value: unknown,
-): Record<string, unknown> => {
-  const keys = path.split('.');
-  const root: Record<string, unknown> = {};
-  let node = root;
-  for (let i = 0; i < keys.length - 1; i++) {
-    node[keys[i]] = {};
-    node = node[keys[i]] as Record<string, unknown>;
-  }
-  node[keys[keys.length - 1]] = value;
-  return root;
-};
+export const nestPartial = (path: string, value: unknown): object =>
+  setByPath({}, path, value);
+
+// Arrays are replaced, matching how the backend merges a plugin's stored
+// config over its defaults.
+const deepmerge = deepmergeCustom({ mergeArrays: false });
 
 // ---- app option get/set (with the tray composite special case) ----
 
@@ -161,18 +137,20 @@ export const getAppValue = (snapshot: StoreShape, key: string): unknown => {
   return getByPath(snapshot, key);
 };
 
-export const setAppValue = (key: string, value: unknown) => {
+export const setAppValue = async (key: string, value: unknown) => {
   if (key === TRAY_KEY) {
     const tray = value !== 'off';
     const appVisible = value !== 'hide';
     patchLocal('options.tray', tray);
     patchLocal('options.appVisible', appVisible);
-    bridge.optionSet('options.tray', tray);
-    bridge.optionSet('options.appVisible', appVisible);
+    await bridge.optionSet('options.tray', tray);
+    await bridge.optionSet('options.appVisible', appVisible);
     return;
   }
+
   patchLocal(key, value);
-  bridge.optionSet(key, value);
+  // A refused write leaves the optimistic patch in place, so re-read.
+  if ((await bridge.optionSet(key, value)) === false) await refreshStore();
 };
 
 // ---- plugin config get/set ----
@@ -183,8 +161,14 @@ export const getPluginConfig = (
   defaults: Record<string, unknown>,
 ): Record<string, unknown> => {
   const stored = (snapshot.plugins as PluginConfigMap)[id];
-  return deepMergeLite(defaults, stored);
+  return deepmerge(defaults, stored ?? {}) as Record<string, unknown>;
 };
+
+const pendingPluginWrites = new Map<
+  string,
+  { timeout: ReturnType<typeof setTimeout>; write: () => Promise<unknown> }
+>();
+const PLUGIN_SLIDER_DEBOUNCE_MS = 200;
 
 export const setPluginValue = (id: string, key: string, value: unknown) => {
   patchLocal(`plugins.${id}.${key}`, value);
@@ -214,6 +198,15 @@ export const setPluginSliderValue = (
   });
 };
 
+/** Persist slider values that are still waiting for their debounce timer. */
+export const flushPendingPluginSliderWrites = async () => {
+  const pending = [...pendingPluginWrites.values()];
+  pendingPluginWrites.clear();
+
+  for (const item of pending) clearTimeout(item.timeout);
+  await Promise.all(pending.map((item) => item.write()));
+};
+
 // ---- native dialog helpers (for `action` fields) ----
 
 export const pickDirectory = (): Promise<string | undefined> =>
@@ -224,11 +217,7 @@ export const pickFile = (
 ): Promise<string | undefined> =>
   bridge.pickPath({ properties: ['openFile'], filters });
 
-/** Persist slider values that are still waiting for their debounce timer. */
-export const flushPendingPluginSliderWrites = async () => {
-  const pending = [...pendingPluginWrites.values()];
-  pendingPluginWrites.clear();
-
-  for (const item of pending) clearTimeout(item.timeout);
-  await Promise.all(pending.map((item) => item.write()));
-};
+export const pickFiles = (
+  filters?: { name: string; extensions: string[] }[],
+): Promise<string[]> =>
+  bridge.pickPaths({ properties: ['openFile', 'multiSelections'], filters });

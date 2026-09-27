@@ -16,21 +16,22 @@ import { allPlugins } from 'virtual:plugins';
 import { APPLICATION_NAME, setLanguage, t } from '@/i18n';
 
 import * as config from './config';
-import { getThemeOverrides, setThemeOverrides } from './config';
 import { getAllMenuTemplate, loadAllMenuPlugins } from './loader/menu';
 import { restart } from './providers/app-controls';
-import { appIconPath, windowIconPath } from './providers/app-icon';
 import { startingPages } from './providers/extracted-data';
+import { applyOptionEffects } from './providers/option-effects';
 import promptOptions from './providers/prompt-options';
 import { stripMusicSubdomain } from './providers/share-url';
-import { syncShortcutIcons } from './providers/shortcut-icons';
 import {
   createThemeFromCssFiles,
-  ensureJsConsent,
   loadThemes,
+  notifyThemesChanged,
   openThemesFolder,
+  resetThemePalette,
+  selectTheme,
+  setThemePaletteValue,
+  themePaletteValue,
 } from './themes/main';
-import { refreshTrayIcons } from './tray';
 
 import packageJson from '../package.json';
 
@@ -38,9 +39,6 @@ export type MenuTemplate = Electron.MenuItemConstructorOptions[];
 
 const paletteLabel = (key: string) =>
   key.charAt(0).toUpperCase() + key.slice(1);
-
-const notifyThemesChanged = (win: BrowserWindow) =>
-  win.webContents.send('peard:themes-changed');
 
 // True only if in-app-menu was loaded on launch
 let inAppMenuActivePromise: Promise<boolean> | undefined;
@@ -207,9 +205,10 @@ export const mainMenuTemplate = async (
                   'options.stripMusicFromSharedLinks',
                   item.checked,
                 );
-                win.webContents.send(
-                  'peard:strip-music-from-shared-links',
+                applyOptionEffects(
+                  'options.stripMusicFromSharedLinks',
                   item.checked,
+                  win,
                 );
               },
             },
@@ -224,9 +223,10 @@ export const mainMenuTemplate = async (
                   'options.stripSIFromSharedLinks',
                   item.checked,
                 );
-                win.webContents.send(
-                  'peard:strip-si-from-shared-links',
+                applyOptionEffects(
+                  'options.stripSIFromSharedLinks',
                   item.checked,
+                  win,
                 );
               },
             },
@@ -279,17 +279,7 @@ export const mainMenuTemplate = async (
               checked: config.get('options.useYtmIcons'),
               click(item: MenuItem) {
                 config.setMenuOption('options.useYtmIcons', item.checked);
-
-                // The window/dock and tray icons can be swapped without a restart
-                if (is.macOS()) {
-                  app.dock?.setIcon(appIconPath());
-                } else {
-                  win.setIcon(windowIconPath());
-                }
-                refreshTrayIcons();
-                // The exe icon is baked in at build time; shortcuts can carry
-                // their own, so keep those in step with the option.
-                syncShortcutIcons();
+                applyOptionEffects('options.useYtmIcons', item.checked, win);
               },
             },
             {
@@ -395,11 +385,7 @@ export const mainMenuTemplate = async (
                 // Colors submenu below is built per theme rather than from the
                 // selection, so nothing here needs repopulating.
                 const select = async (id: string) => {
-                  const theme = themes.find((entry) => entry.id === id);
-                  if (theme && !(await ensureJsConsent(theme, win))) return;
-
-                  config.set('options.theme', id);
-                  notifyThemesChanged(win);
+                  if (await selectTheme(id, win)) notifyThemesChanged(win);
                 };
 
                 return [
@@ -447,15 +433,12 @@ export const mainMenuTemplate = async (
                             label: paletteLabel(key),
                             type: 'normal' as const,
                             async click() {
-                              const overrides = getThemeOverrides();
+                              const current = themePaletteValue(theme, key);
                               const value = await prompt(
                                 {
                                   title: paletteLabel(key),
                                   label: paletteLabel(key),
-                                  value:
-                                    overrides[theme.id]?.[key] ??
-                                    theme.palette[key] ??
-                                    '',
+                                  value: current,
                                   type: 'input',
                                   inputAttrs: { type: 'text', required: true },
                                   width: 380,
@@ -468,13 +451,7 @@ export const mainMenuTemplate = async (
                                 return;
                               }
 
-                              setThemeOverrides({
-                                ...overrides,
-                                [theme.id]: {
-                                  ...overrides[theme.id],
-                                  [key]: value.trim(),
-                                },
-                              });
+                              setThemePaletteValue(theme.id, key, value.trim());
                               notifyThemesChanged(win);
                             },
                           })),
@@ -485,9 +462,7 @@ export const mainMenuTemplate = async (
                             ),
                             type: 'normal' as const,
                             click() {
-                              const next = { ...getThemeOverrides() };
-                              delete next[theme.id];
-                              setThemeOverrides(next);
+                              resetThemePalette(theme.id);
                               notifyThemesChanged(win);
                             },
                           },
@@ -547,7 +522,7 @@ export const mainMenuTemplate = async (
           checked: config.get('options.alwaysOnTop'),
           click(item: MenuItem) {
             config.setMenuOption('options.alwaysOnTop', item.checked);
-            win.setAlwaysOnTop(item.checked);
+            applyOptionEffects('options.alwaysOnTop', item.checked, win);
           },
         },
         ...((is.windows() || is.linux()
@@ -584,6 +559,7 @@ export const mainMenuTemplate = async (
                 checked: config.get('options.startAtLogin'),
                 click(item) {
                   config.setMenuOption('options.startAtLogin', item.checked);
+                  applyOptionEffects('options.startAtLogin', item.checked, win);
                 },
               },
             ]
@@ -662,6 +638,11 @@ export const mainMenuTemplate = async (
                   'options.trayForceWhiteIcons',
                   item.checked,
                 );
+                applyOptionEffects(
+                  'options.trayForceWhiteIcons',
+                  item.checked,
+                  win,
+                );
               },
             },
           ],
@@ -683,53 +664,63 @@ export const mainMenuTemplate = async (
               label: t('main.menu.options.submenu.language.submenu.sync.label'),
               submenu: [
                 {
-                  label: t('main.menu.options.submenu.language.submenu.sync.submenu.from-youtube'),
+                  label: t(
+                    'main.menu.options.submenu.language.submenu.sync.submenu.from-youtube',
+                  ),
                   type: 'normal',
                   click() {
-                    win.webContents.session.cookies.get({ name: 'PREF' }).then((cookies) => {
-                      let ytLang = cookies[0].value.split('&').find((c) => c.startsWith('hl='))?.split('=')[1] || 'en';
-                      // strip locale
-                      if (ytLang.startsWith('en-')) ytLang = 'en';
-                      else if (ytLang.startsWith('fr-')) ytLang = 'fr';
-                      else if (ytLang.startsWith('es-')) ytLang = 'es';
+                    win.webContents.session.cookies
+                      .get({ name: 'PREF' })
+                      .then((cookies) => {
+                        let ytLang =
+                          cookies[0].value
+                            .split('&')
+                            .find((c) => c.startsWith('hl='))
+                            ?.split('=')[1] || 'en';
+                        // strip locale
+                        if (ytLang.startsWith('en-')) ytLang = 'en';
+                        else if (ytLang.startsWith('fr-')) ytLang = 'fr';
+                        else if (ytLang.startsWith('es-')) ytLang = 'es';
 
-                      // portuguese is reversed for some reason
-                      if (ytLang == 'pt') ytLang = 'pt-BR';
-                      else if (ytLang == 'pt-PT') ytLang = 'pt';
+                        // portuguese is reversed for some reason
+                        if (ytLang == 'pt') ytLang = 'pt-BR';
+                        else if (ytLang == 'pt-PT') ytLang = 'pt';
 
-                      // we dont have zh-HK
-                      else if (ytLang == 'zh-HK') ytLang = 'zh-TW';
+                        // we dont have zh-HK
+                        else if (ytLang == 'zh-HK') ytLang = 'zh-TW';
 
-                      // norsk is nb
-                      else if (ytLang == 'no') ytLang = 'nb';
+                        // norsk is nb
+                        else if (ytLang == 'no') ytLang = 'nb';
 
-                      if (!langResources[ytLang]) {
-                        dialog.showMessageBoxSync(win, {
-                          title: t(
-                            'main.menu.options.submenu.language.submenu.sync.failure.dialog.title',
-                          ),
-                          message: t(
-                            'main.menu.options.submenu.language.submenu.sync.failure.dialog.message',
-                          ),
-                        });
-                      } else {
-                        config.setMenuOption('options.language', ytLang);
-                        refreshMenu(win);
-                        setLanguage(ytLang);
-                        dialog.showMessageBox(win, {
-                          title: t(
-                            'main.menu.options.submenu.language.dialog.title',
-                          ),
-                          message: t(
-                            'main.menu.options.submenu.language.dialog.message',
-                          ),
-                        });
-                      }
-                    });
+                        if (!langResources[ytLang]) {
+                          dialog.showMessageBoxSync(win, {
+                            title: t(
+                              'main.menu.options.submenu.language.submenu.sync.failure.dialog.title',
+                            ),
+                            message: t(
+                              'main.menu.options.submenu.language.submenu.sync.failure.dialog.message',
+                            ),
+                          });
+                        } else {
+                          config.setMenuOption('options.language', ytLang);
+                          refreshMenu(win);
+                          setLanguage(ytLang);
+                          dialog.showMessageBox(win, {
+                            title: t(
+                              'main.menu.options.submenu.language.dialog.title',
+                            ),
+                            message: t(
+                              'main.menu.options.submenu.language.dialog.message',
+                            ),
+                          });
+                        }
+                      });
                   },
                 },
                 {
-                  label: t('main.menu.options.submenu.language.submenu.sync.submenu.to-youtube'),
+                  label: t(
+                    'main.menu.options.submenu.language.submenu.sync.submenu.to-youtube',
+                  ),
                   type: 'normal',
                   click() {
                     let lang = config.get('options.language') ?? 'en';
@@ -743,27 +734,38 @@ export const mainMenuTemplate = async (
 
                     // be-Latn doesnt exist in ytm
                     else if (lang == 'be-Latn') lang = 'be';
-                    
+
                     // these dont exist in ytm
-                    else if (lang == 'ckb') lang = 'en'; // placeholder
-                    else if (lang == 'kmr') lang = 'en'; // placeholder
-                    else if (lang == 'he') lang = 'en'; // placeholder
-                    else if (lang == 'qu') lang = 'en'; // placeholder
+                    else if (lang == 'ckb')
+                      lang = 'en'; // placeholder
+                    else if (lang == 'kmr')
+                      lang = 'en'; // placeholder
+                    else if (lang == 'he')
+                      lang = 'en'; // placeholder
+                    else if (lang == 'qu')
+                      lang = 'en'; // placeholder
                     else if (lang == 'sah') lang = 'ru'; // placeholder
 
-                    win.webContents.session.cookies.get({ name: 'PREF' }).then((cookies) => {
-                      const prefs = cookies[0];
-                      const prefsVal = prefs.value || '';
-                      const hlEntry = prefsVal.split('&').find((c) => c.startsWith('hl=')) || 'hl=en';
-                      win.webContents.session.cookies.set({
-                        domain: prefs.domain,
-                        name: prefs.name,
-                        value: prefsVal.replace(hlEntry, `hl=${lang}`),
-                        url: 'https://music.youtube.com',
-                      }).then(() => {
-                        win.webContents.reload();
+                    win.webContents.session.cookies
+                      .get({ name: 'PREF' })
+                      .then((cookies) => {
+                        const prefs = cookies[0];
+                        const prefsVal = prefs.value || '';
+                        const hlEntry =
+                          prefsVal
+                            .split('&')
+                            .find((c) => c.startsWith('hl=')) || 'hl=en';
+                        win.webContents.session.cookies
+                          .set({
+                            domain: prefs.domain,
+                            name: prefs.name,
+                            value: prefsVal.replace(hlEntry, `hl=${lang}`),
+                            url: 'https://music.youtube.com',
+                          })
+                          .then(() => {
+                            win.webContents.reload();
+                          });
                       });
-                    });
                   },
                 },
               ],

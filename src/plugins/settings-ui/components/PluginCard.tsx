@@ -62,10 +62,7 @@ export const PluginCard = (props: PluginCardProps) => (
         </span>
       </Show>
 
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ display: 'inline-flex' }}
-      >
+      <div class="sui-card__switch" onClick={(e) => e.stopPropagation()}>
         <Switch
           checked={props.enabled}
           label={props.name}

@@ -6,6 +6,7 @@ import { waitForElement } from '@/utils/wait-for-element';
 
 import { SettingsButton } from './components/SettingsButton';
 import { SettingsModal } from './components/SettingsModal';
+import { ThemePaletteField } from './components/ThemePalette';
 import { listenStorePush, refreshStore, setIpc } from './state';
 
 const [open, setOpen] = createSignal(false);
@@ -13,14 +14,14 @@ const [open, setOpen] = createSignal(false);
 const GUIDE_SELECTORS = ['#guide-renderer', '#mini-guide-renderer'];
 const ITEMS_SELECTOR = 'ytmusic-guide-section-renderer[is-primary] > #items';
 
-const buttonCleanup: Record<string, () => void> = {};
+/** Injected buttons, kept so they can be unmounted with the plugin. */
+const injected: { host: HTMLElement; dispose: () => void }[] = [];
+let modalHost: HTMLElement | undefined;
 let modalDispose: (() => void) | undefined;
 
 const injectButton = (guide: HTMLElement) => {
   const items = guide.querySelector(ITEMS_SELECTOR);
   if (!items) return;
-
-  buttonCleanup[guide.id]?.();
 
   const host = document.createElement('div');
   host.classList.add('ytmd-sui-entry-host');
@@ -31,28 +32,43 @@ const injectButton = (guide: HTMLElement) => {
     () => <SettingsButton onClick={() => setOpen(true)} />,
     host,
   );
-  buttonCleanup[guide.id] = () => {
-    dispose();
-    host.remove();
-  };
+  injected.push({ host, dispose });
 };
 
 const mountModal = () => {
   if (modalDispose) return;
-  const host = document.createElement('div');
-  host.id = 'ytmd-sui-root';
-  document.body.appendChild(host);
+
+  modalHost = document.createElement('div');
+  modalHost.id = 'ytmd-sui-root';
+  document.body.appendChild(modalHost);
+
   modalDispose = render(
     () => (
       <Show when={open()}>
         <SettingsModal onClose={() => setOpen(false)} />
       </Show>
     ),
-    host,
+    modalHost,
   );
 };
 
+const teardownUi = () => {
+  modalDispose?.();
+  modalDispose = undefined;
+  modalHost?.remove();
+  modalHost = undefined;
+
+  for (const { host, dispose } of injected.splice(0)) {
+    dispose();
+    host.remove();
+  }
+
+  setOpen(false);
+};
+
 export const renderer = createRenderer({
+  components: { themePalette: ThemePaletteField },
+
   async start(ctx) {
     setIpc(ctx.ipc);
     await refreshStore();
@@ -65,12 +81,7 @@ export const renderer = createRenderer({
     }
   },
 
-  stop() {
-    for (const dispose of Object.values(buttonCleanup)) dispose();
-    modalDispose?.();
-    modalDispose = undefined;
-    setOpen(false);
-  },
+  stop: teardownUi,
 });
 
 const hot = (
@@ -78,10 +89,4 @@ const hot = (
     hot?: { dispose: (cb: () => void) => void };
   }
 ).hot;
-if (hot) {
-  hot.dispose(() => {
-    for (const dispose of Object.values(buttonCleanup)) dispose();
-    modalDispose?.();
-    modalDispose = undefined;
-  });
-}
+hot?.dispose(teardownUi);

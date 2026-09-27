@@ -11,9 +11,38 @@ import electronUpdater from 'electron-updater';
 
 import * as config from '@/config';
 import { restart } from '@/providers/app-controls';
+import { applyOptionEffects } from '@/providers/option-effects';
+import {
+  createThemeFromCssFiles,
+  notifyThemesChanged,
+  openThemesFolder,
+  resetThemePalette,
+  selectTheme,
+  setThemePaletteValue,
+  themesForRenderer,
+} from '@/themes/main';
 import { createBackend } from '@/utils';
 
 import type { SettingsUIConfig } from './index';
+
+const CHANNELS = [
+  'ytmd-sui:load-store',
+  'ytmd-sui:option-set',
+  'ytmd-sui:plugin-toggle',
+  'ytmd-sui:pick-path',
+  'ytmd-sui:pick-paths',
+  'ytmd-sui:config-edit',
+  'ytmd-sui:toggle-devtools',
+  'ytmd-sui:restart',
+  'ytmd-sui:app-meta',
+  'ytmd-sui:open-external',
+  'ytmd-sui:check-updates',
+  'ytmd-sui:themes',
+  'ytmd-sui:theme-color-set',
+  'ytmd-sui:theme-colors-reset',
+  'ytmd-sui:import-theme-css',
+  'ytmd-sui:open-themes-folder',
+];
 
 export const backend = createBackend<
   { unwatch: (() => void) | undefined },
@@ -26,10 +55,25 @@ export const backend = createBackend<
 
     ipc.handle('ytmd-sui:load-store', () => config.getStore());
 
-    ipc.handle('ytmd-sui:option-set', (key: string, value: unknown) => {
-      if (typeof key !== 'string' || !key) return;
-      config.set(key, value);
-    });
+    // Returns false when the write was refused (declining a theme's script),
+    // so the caller can re-read the store instead of keeping its optimistic value.
+    ipc.handle(
+      'ytmd-sui:option-set',
+      async (key: string, value: unknown): Promise<boolean> => {
+        if (typeof key !== 'string' || !key) return false;
+
+        if (key === 'options.theme') {
+          if (typeof value !== 'string') return false;
+          if (!(await selectTheme(value, window))) return false;
+          notifyThemesChanged(window);
+          return true;
+        }
+
+        config.set(key, value);
+        applyOptionEffects(key, value, window);
+        return true;
+      },
+    );
 
     ipc.handle('ytmd-sui:plugin-toggle', (id: string, enabled: boolean) => {
       if (typeof id !== 'string' || !id || typeof enabled !== 'boolean') return;
@@ -42,6 +86,14 @@ export const backend = createBackend<
       async (options: OpenDialogOptions): Promise<string | undefined> => {
         const result = await dialog.showOpenDialog(window, options);
         return result.canceled ? undefined : result.filePaths[0];
+      },
+    );
+
+    ipc.handle(
+      'ytmd-sui:pick-paths',
+      async (options: OpenDialogOptions): Promise<string[]> => {
+        const result = await dialog.showOpenDialog(window, options);
+        return result.canceled ? [] : result.filePaths;
       },
     );
 
@@ -76,6 +128,44 @@ export const backend = createBackend<
       electronUpdater.autoUpdater.checkForUpdatesAndNotify(),
     );
 
+    // Themes: the same state the renderer applies, plus the edits the native
+    // menu's theme submenu offers.
+    ipc.handle('ytmd-sui:themes', () => ({
+      themes: themesForRenderer(),
+      selected: config.get('options.theme'),
+      overrides: config.getThemeOverrides(),
+    }));
+
+    ipc.handle(
+      'ytmd-sui:theme-color-set',
+      (themeId: string, key: string, value: string) => {
+        if (!themeId || !key || typeof value !== 'string') return;
+        setThemePaletteValue(themeId, key, value);
+        notifyThemesChanged(window);
+      },
+    );
+
+    ipc.handle('ytmd-sui:theme-colors-reset', (themeId: string) => {
+      if (!themeId) return;
+      resetThemePalette(themeId);
+      notifyThemesChanged(window);
+    });
+
+    ipc.handle('ytmd-sui:import-theme-css', async (paths: string[]) => {
+      const id = createThemeFromCssFiles(Array.isArray(paths) ? paths : []);
+      if (!id) return;
+
+      // Imported themes carry no script, so there is nothing to consent to.
+      config.set('options.theme', id);
+      notifyThemesChanged(window);
+
+      // The native menu lists themes too; rebuild it outside this handler.
+      const { refreshMenu } = await import('@/menu');
+      await refreshMenu(window);
+    });
+
+    ipc.handle('ytmd-sui:open-themes-folder', () => openThemesFolder());
+
     this.unwatch = config.watch(() => {
       const store = config.getStore();
       // Broadcast to every window: the injected modal lives in the main
@@ -93,19 +183,6 @@ export const backend = createBackend<
     this.unwatch?.();
     this.unwatch = undefined;
 
-    for (const channel of [
-      'ytmd-sui:load-store',
-      'ytmd-sui:option-set',
-      'ytmd-sui:plugin-toggle',
-      'ytmd-sui:pick-path',
-      'ytmd-sui:config-edit',
-      'ytmd-sui:toggle-devtools',
-      'ytmd-sui:restart',
-      'ytmd-sui:app-meta',
-      'ytmd-sui:open-external',
-      'ytmd-sui:check-updates',
-    ]) {
-      ctx.ipc.removeHandler(channel);
-    }
+    for (const channel of CHANNELS) ctx.ipc.removeHandler(channel);
   },
 });

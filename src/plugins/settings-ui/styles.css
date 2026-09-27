@@ -512,7 +512,7 @@
   top: 50%;
   height: 16px;
   border-radius: 999px;
-  content: "";
+  content: '';
   transform: translateY(-50%);
 }
 .sui-slider-track::before {
@@ -706,6 +706,37 @@
   background: var(--sui-surface-highest);
 }
 
+.sui-card__switch {
+  display: inline-flex;
+}
+
+/* ---- theme palette editor (custom field) ---- */
+.sui-palette {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+.sui-palette__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.sui-palette__key {
+  flex: 0 0 96px;
+  color: var(--sui-on-surface-variant);
+  font-size: 13px;
+}
+.sui-palette__swatch {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--sui-outline);
+  border-radius: 6px;
+}
+
 /* ---- about section ---- */
 .sui-about {
   display: flex;
@@ -781,13 +812,6 @@
   align-items: center;
   gap: 8px;
 }
-.sui-about__credits {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--sui-on-surface-variant);
-}
-
 /* ---- scrollbars inside the modal ---- */
 .sui-nav::-webkit-scrollbar,
 .sui-body::-webkit-scrollbar {

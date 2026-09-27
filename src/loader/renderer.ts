@@ -13,6 +13,24 @@ const loadedPluginMap: Record<
   PluginDef<unknown, unknown, unknown>
 > = {};
 
+/** The renderer-side IPC bridge, shared with the standalone settings window. */
+export const createRendererIpc = (): RendererContext<PluginConfig>['ipc'] => ({
+  send: (event: string, ...args: unknown[]) => {
+    window.ipcRenderer.send(event, ...args);
+  },
+  invoke: (event: string, ...args: unknown[]) =>
+    window.ipcRenderer.invoke(event, ...args),
+  on: (event: string, listener: CallableFunction) => {
+    window.ipcRenderer.on(event, (_, ...args: unknown[]) => {
+      // oxlint-disable-next-line typescript/no-unsafe-call
+      listener(...args);
+    });
+  },
+  removeAllListeners: (event: string) => {
+    window.ipcRenderer.removeAllListeners(event);
+  },
+});
+
 export const createContext = <Config extends PluginConfig>(
   id: string,
 ): RendererContext<Config> => ({
@@ -21,22 +39,7 @@ export const createContext = <Config extends PluginConfig>(
   setConfig: async (newConfig) => {
     await window.ipcRenderer.invoke('peard:set-config', id, newConfig);
   },
-  ipc: {
-    send: (event: string, ...args: unknown[]) => {
-      window.ipcRenderer.send(event, ...args);
-    },
-    invoke: (event: string, ...args: unknown[]) =>
-      window.ipcRenderer.invoke(event, ...args),
-    on: (event: string, listener: CallableFunction) => {
-      window.ipcRenderer.on(event, (_, ...args: unknown[]) => {
-        // oxlint-disable-next-line typescript/no-unsafe-call
-        listener(...args);
-      });
-    },
-    removeAllListeners: (event: string) => {
-      window.ipcRenderer.removeAllListeners(event);
-    },
-  },
+  ipc: createRendererIpc(),
 });
 
 export const forceUnloadRendererPlugin = async (id: string) => {

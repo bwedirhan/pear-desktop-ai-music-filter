@@ -1,5 +1,3 @@
-import type { JSX } from 'solid-js';
-
 // Material-style 24dp icon paths, keyed by id used across the modal.
 const PATHS: Record<string, string> = {
   settings:
@@ -31,14 +29,13 @@ const PATHS: Record<string, string> = {
 export interface IconProps {
   name: keyof typeof PATHS;
   size?: number;
-  style?: JSX.CSSProperties;
 }
 
 export const Icon = (props: IconProps) => (
   <svg
     fill="currentColor"
     height={props.size ?? 20}
-    style={{ 'display': 'inline-flex', 'flex-shrink': 0, ...props.style }}
+    style={{ 'display': 'inline-flex', 'flex-shrink': 0 }}
     viewBox="0 0 24 24"
     width={props.size ?? 20}
   >

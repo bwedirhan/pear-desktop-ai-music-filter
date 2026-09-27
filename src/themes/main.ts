@@ -219,6 +219,49 @@ export const setupThemes = async () => {
   if (selected) await ensureJsConsent(selected);
 };
 
+/** Tell every renderer to re-read the themes. */
+export const notifyThemesChanged = (win: BrowserWindow) =>
+  win.webContents.send('peard:themes-changed');
+
+/**
+ * Selects a theme, first asking for consent to its script if needed.
+ * Returns false when the user declined, in which case nothing changed.
+ */
+export const selectTheme = async (
+  id: string,
+  win: BrowserWindow,
+): Promise<boolean> => {
+  const theme = loadThemes().find((entry) => entry.id === id);
+  if (theme && !(await ensureJsConsent(theme, win))) return false;
+
+  setConfig('options.theme', id);
+  return true;
+};
+
+/** The value a palette key currently resolves to: override, else the theme's. */
+export const themePaletteValue = (theme: PearTheme, key: string): string =>
+  getThemeOverrides()[theme.id]?.[key] ?? theme.palette[key] ?? '';
+
+/** Overrides one palette value of a theme, keeping the other overrides. */
+export const setThemePaletteValue = (
+  themeId: string,
+  key: string,
+  value: string,
+) => {
+  const overrides = getThemeOverrides();
+  setThemeOverrides({
+    ...overrides,
+    [themeId]: { ...overrides[themeId], [key]: value },
+  });
+};
+
+/** Drops a theme's palette overrides, restoring its own values. */
+export const resetThemePalette = (themeId: string) => {
+  const overrides = { ...getThemeOverrides() };
+  delete overrides[themeId];
+  setThemeOverrides(overrides);
+};
+
 /** Creates a theme folder from CSS file(s) picked by the user. */
 export const createThemeFromCssFiles = (paths: string[]): string | null => {
   const existing = paths.filter((path) => fs.existsSync(path));
