@@ -208,11 +208,6 @@ export const SettingsModal = (props: {
     if (isSearching()) return t('settings-ui.search-results');
     return currentSection()?.label() ?? '';
   };
-  const headerSub = () => {
-    if (isSearching())
-      return t('settings-ui.search-matching', { query: query().trim() });
-    return currentSection()?.sub() ?? '';
-  };
 
   // ---- search result computation ----
   const searchAppGroups = createMemo(() => {
@@ -348,7 +343,6 @@ export const SettingsModal = (props: {
         <aside class="sui-sidebar">
           <div class="sui-sidebar__head">
             <div class="sui-sidebar__title">{t('settings-ui.title')}</div>
-            <div class="sui-sidebar__subtitle">{t('settings-ui.subtitle')}</div>
           </div>
 
           <div class="sui-search">
@@ -409,7 +403,14 @@ export const SettingsModal = (props: {
           <header class="sui-header">
             <div class="sui-header__text">
               <div class="sui-header__title">{headerTitle()}</div>
-              <div class="sui-header__sub">{headerSub()}</div>
+              {/* Only the live search line; sections dont get a subtitle. */}
+              <Show when={isSearching()}>
+                <div class="sui-header__sub">
+                  {t('settings-ui.search-matching', {
+                    query: query().trim(),
+                  })}
+                </div>
+              </Show>
             </div>
             <button
               aria-label={t('settings-ui.close')}

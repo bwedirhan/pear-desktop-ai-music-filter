@@ -120,11 +120,6 @@
   font-size: 22px;
   line-height: 28px;
 }
-.sui-sidebar__subtitle {
-  font-size: 12px;
-  color: var(--sui-on-surface-variant);
-  margin-top: 3px;
-}
 .sui-search {
   margin: 0 14px 10px;
   display: flex;
@@ -227,7 +222,7 @@
   min-width: 0;
 }
 .sui-header__title {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 500;
 }
 .sui-header__sub {
@@ -352,6 +347,10 @@
 }
 .sui-card__head--clickable {
   cursor: pointer;
+}
+/* Plugin cards need more air between name and description than a field does. */
+.sui-card__head .sui-field__desc {
+  margin-top: 6px;
 }
 .sui-card__chevron {
   color: var(--sui-on-surface-variant);
