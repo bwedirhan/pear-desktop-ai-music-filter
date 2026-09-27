@@ -54,13 +54,19 @@ export const Dropdown = (props: {
     props.onChange(opt ? opt.value : raw);
   };
   return (
-    <select
-      class="sui-select"
-      onChange={(e) => emit(e.currentTarget.value)}
-      value={String(props.value)}
-    >
+    <select class="sui-select" onChange={(e) => emit(e.currentTarget.value)}>
       <For each={props.options}>
-        {(opt) => <option value={String(opt.value)}>{opt.label()}</option>}
+        {(opt) => (
+          // `selected` per option rather than `value` on the <select>: option
+          // lists resolve asynchronously, so a value written while the select
+          // is still empty is dropped and the first option wins instead.
+          <option
+            selected={String(opt.value) === String(props.value)}
+            value={String(opt.value)}
+          >
+            {opt.label()}
+          </option>
+        )}
       </For>
     </select>
   );
