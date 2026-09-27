@@ -589,6 +589,10 @@
 .sui-text {
   width: 100%;
   height: 48px;
+  /* Without this the padding and border add to width: 100% and the field
+     overflows its card. */
+  box-sizing: border-box;
+  padding: 0 12px;
   border-radius: 8px;
   background: var(--sui-surface-high);
   color: var(--sui-on-surface);
