@@ -4,7 +4,7 @@ import { t } from '@/i18n';
 import { startingPages } from '@/providers/extracted-data';
 import { Platform } from '@/types/plugins';
 
-import { bridge, themePalette } from '../state';
+import { bridge, themePalette, themePresets } from '../state';
 
 import type {
   ActionField,
@@ -238,6 +238,16 @@ export const buildAppSections = (): AppSection[] => {
               // The backend pushes the list when themes are imported.
               { variant: 'dropdown', refreshable: false },
             ),
+            {
+              type: 'custom',
+              key: 'options.themePresets',
+              label: () => t('settings-ui.fields.theme-preset'),
+              component: 'settings-ui.themePreset',
+              // The field draws this label itself, next to the pick.
+              hideLabel: true,
+              // A theme that ships no presets has nothing to pick.
+              visible: () => Object.keys(themePresets()).length > 0,
+            },
             {
               type: 'custom',
               key: 'options.themeOverrides',

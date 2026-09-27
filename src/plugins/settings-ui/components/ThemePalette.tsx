@@ -1,23 +1,29 @@
-import { For, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 
 import { t } from '@/i18n';
+import { CUSTOM_PRESET, keyLabel, presetPalette } from '@/themes/types';
 
-import { bridge, patchLocal, store, themePalette } from '../state';
+import {
+  bridge,
+  patchLocal,
+  store,
+  themeOverrides,
+  themePalette,
+  themePreset,
+  themePresetNames,
+  themePresets,
+} from '../state';
 
-import type { ThemePalette } from '@/themes/types';
 import type { CustomFieldContext } from '@/types/settings';
 
-/** `scrollbar-width` reads as `Scrollbar Width`. */
-const keyLabel = (key: string) =>
-  key
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+const themeLabel = (key: string) =>
+  `main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.${key}`;
 
 /**
- * Editor for the selected theme's palette: one text input per palette key,
- * defaulting to the theme's own value until the user overrides it.
+ * Editor for the selected theme's palette: one text input per variable, which
+ * is the theme's own value, the preset's, or the user's own. Editing a value,
+ * or adding a variable, makes the palette the user's own, so the preset pick
+ * (a field of its own, right under the theme) switches to Custom.
  */
 export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
   const selectedId = () => store()?.options.theme ?? '';
@@ -25,27 +31,54 @@ export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
   const palette = themePalette;
   const keys = () => Object.keys(palette());
 
-  // Read overrides from the store so local edits show up immediately.
-  const overrides = (): Record<string, ThemePalette> =>
-    (store()?.options.themeOverrides as Record<string, ThemePalette>) ?? {};
-  const valueOf = (key: string) =>
-    overrides()[selectedId()]?.[key] ?? palette()[key] ?? '';
-
+  /**
+   * Writes one custom value. Main seeds the custom palette the same way, so
+   * editing while a preset is picked keeps the rest of that preset.
+   */
   const setValue = async (key: string, value: string) => {
     const themeId = selectedId();
+    const custom = {
+      ...presetPalette(
+        themePresets(),
+        themePreset(),
+        themeOverrides()[themeId] ?? {},
+      ),
+      [key]: value,
+    };
+
+    patchLocal('options.themePresets', {
+      ...themePresetNames(),
+      [themeId]: CUSTOM_PRESET,
+    });
     patchLocal('options.themeOverrides', {
-      ...overrides(),
-      [themeId]: { ...overrides()[themeId], [key]: value },
+      ...themeOverrides(),
+      [themeId]: custom,
     });
     await bridge.setThemeColor(themeId, key, value);
   };
 
   const reset = async () => {
     const themeId = selectedId();
-    const next = { ...overrides() };
+    const next = { ...themeOverrides() };
     delete next[themeId];
     patchLocal('options.themeOverrides', next);
+    patchLocal('options.themePresets', {
+      ...themePresetNames(),
+      [themeId]: '',
+    });
     await bridge.resetThemeColors(themeId);
+  };
+
+  const [newKey, setNewKey] = createSignal('');
+  const [newValue, setNewValue] = createSignal('');
+
+  const addVariable = async () => {
+    const key = newKey().trim();
+    if (!key) return;
+
+    await setValue(key, newValue());
+    setNewKey('');
+    setNewValue('');
   };
 
   return (
@@ -59,19 +92,36 @@ export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
                 class="sui-text"
                 onChange={(e) => setValue(key, e.currentTarget.value)}
                 type="text"
-                value={valueOf(key)}
+                value={palette()[key] ?? ''}
               />
               <span
                 class="sui-palette__swatch"
-                style={{ background: valueOf(key) }}
+                style={{ background: palette()[key] }}
               />
             </label>
           )}
         </For>
+        <div class="sui-palette__row">
+          <input
+            class="sui-text sui-palette__name"
+            onInput={(e) => setNewKey(e.currentTarget.value)}
+            placeholder={t('settings-ui.fields.theme-variable-name')}
+            type="text"
+            value={newKey()}
+          />
+          <input
+            class="sui-text"
+            onInput={(e) => setNewValue(e.currentTarget.value)}
+            placeholder={t('settings-ui.fields.theme-variable-value')}
+            type="text"
+            value={newValue()}
+          />
+          <button class="sui-outlinedbtn" onClick={addVariable} type="button">
+            {t('settings-ui.fields.theme-variable-add')}
+          </button>
+        </div>
         <button class="sui-outlinedbtn" onClick={reset} type="button">
-          {t(
-            'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.reset-colors',
-          )}
+          {t(themeLabel('reset-colors'))}
         </button>
       </div>
     </Show>

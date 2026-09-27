@@ -42,6 +42,11 @@ export interface DefaultConfig {
     stripSIFromSharedLinks: boolean;
     /** Id of the selected external theme, or '' for no theme. */
     theme: string;
+    /**
+     * Preset the user picked per theme id: a preset name, `custom` for the
+     * palette they edited themselves, or '' for the theme's own palette.
+     */
+    themePresets: Record<string, string>;
     /** Per-theme palette overrides, keyed by theme id then palette key. */
     themeOverrides: Record<string, Record<string, string>>;
     /** Hash of the theme JS the user consented to run, keyed by theme id. */
@@ -91,6 +96,7 @@ export const defaultConfig: DefaultConfig = {
     stripMusicFromSharedLinks: false,
     stripSIFromSharedLinks: true,
     theme: '',
+    themePresets: {},
     themeOverrides: {},
     themeConsent: {},
     themesSeeded: false,

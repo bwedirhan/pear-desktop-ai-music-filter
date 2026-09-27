@@ -7,16 +7,25 @@ import {
   get as getConfig,
   getThemeConsent,
   getThemeOverrides,
+  getThemePresets,
   set as setConfig,
   setThemeConsent,
   setThemeOverrides,
+  setThemePresets,
 } from '@/config';
 import { store } from '@/config/store';
 import { t } from '@/i18n';
 
 import basicCss from './basic.css?inline';
 import { isJsConsented, MANIFEST_FILE, readThemesFrom } from './load';
-import { parseManifest, type PearTheme, type ThemeManifest } from './types';
+import {
+  CUSTOM_PRESET,
+  parseManifest,
+  presetPalette,
+  type PearTheme,
+  type ThemeManifest,
+  type ThemePalette,
+} from './types';
 
 export { MANIFEST_FILE } from './load';
 
@@ -238,28 +247,63 @@ export const selectTheme = async (
   return true;
 };
 
-/** The value a palette key currently resolves to: override, else the theme's. */
-export const themePaletteValue = (theme: PearTheme, key: string): string =>
-  getThemeOverrides()[theme.id]?.[key] ?? theme.palette[key] ?? '';
+/** Records the preset the user picked for a theme, `custom` for their own. */
+export const setThemePreset = (themeId: string, preset: string) => {
+  setThemePresets({ ...getThemePresets(), [themeId]: preset });
+};
 
-/** Overrides one palette value of a theme, keeping the other overrides. */
+/**
+ * What each theme layers on top of its own palette right now: the values of
+ * its selected preset, or the user's custom palette. The renderer resolves
+ * this with `resolvePalette`, so switching preset is just another layer and
+ * needs no reload of anything.
+ */
+export const themePaletteLayers = (): Record<string, ThemePalette> => {
+  const selected = getThemePresets();
+  const overrides = getThemeOverrides();
+
+  return Object.fromEntries(
+    loadThemes().map((theme) => [
+      theme.id,
+      presetPalette(
+        theme.presets,
+        selected[theme.id],
+        overrides[theme.id] ?? {},
+      ),
+    ]),
+  );
+};
+
+/**
+ * Stores one value in a theme's custom palette and selects it, so an edit made
+ * while a preset is active continues from that preset instead of dropping it.
+ */
 export const setThemePaletteValue = (
   themeId: string,
   key: string,
   value: string,
 ) => {
+  const theme = loadThemes().find((entry) => entry.id === themeId);
   const overrides = getThemeOverrides();
+  const custom = presetPalette(
+    theme?.presets,
+    getThemePresets()[themeId],
+    overrides[themeId] ?? {},
+  );
+
   setThemeOverrides({
     ...overrides,
-    [themeId]: { ...overrides[themeId], [key]: value },
+    [themeId]: { ...custom, [key]: value },
   });
+  setThemePreset(themeId, CUSTOM_PRESET);
 };
 
-/** Drops a theme's palette overrides, restoring its own values. */
+/** Drops a theme's custom palette and preset pick, restoring its own values. */
 export const resetThemePalette = (themeId: string) => {
   const overrides = { ...getThemeOverrides() };
   delete overrides[themeId];
   setThemeOverrides(overrides);
+  setThemePreset(themeId, '');
 };
 
 /** Creates a theme folder from CSS file(s) picked by the user. */
@@ -286,29 +330,26 @@ export const openThemesFolder = () => {
 
 /**
  * Drops config entries for themes that no longer exist. Themes are removed by
- * deleting their folder, so this is what keeps stale palette overrides and JS
- * consent from accumulating — and from being inherited by a later theme that
- * happens to reuse the same folder name.
+ * deleting their folder, so this is what keeps stale palette overrides, preset
+ * picks and JS consent from accumulating — and from being inherited by a later
+ * theme that happens to reuse the same folder name.
  */
 const pruneMissingThemes = () => {
   const ids = loadThemes().map((theme) => theme.id);
 
-  const keep = <T>(entries: Record<string, T>) =>
-    Object.fromEntries(
+  const prune = <T>(
+    entries: Record<string, T>,
+    write: (kept: Record<string, T>) => void,
+  ) => {
+    const kept = Object.fromEntries(
       Object.entries(entries).filter(([id]) => ids.includes(id)),
     );
+    if (Object.keys(kept).length !== Object.keys(entries).length) write(kept);
+  };
 
-  const overrides = getThemeOverrides();
-  const keptOverrides = keep(overrides);
-  if (Object.keys(keptOverrides).length !== Object.keys(overrides).length) {
-    setThemeOverrides(keptOverrides);
-  }
-
-  const consent = getThemeConsent();
-  const keptConsent = keep(consent);
-  if (Object.keys(keptConsent).length !== Object.keys(consent).length) {
-    setThemeConsent(keptConsent);
-  }
+  prune(getThemeOverrides(), setThemeOverrides);
+  prune(getThemePresets(), setThemePresets);
+  prune(getThemeConsent(), setThemeConsent);
 
   const selected = getConfig('options.theme');
   if (selected && !ids.includes(selected)) setConfig('options.theme', '');

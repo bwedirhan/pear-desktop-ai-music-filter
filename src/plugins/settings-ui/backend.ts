@@ -22,6 +22,8 @@ import {
   resetThemePalette,
   selectTheme,
   setThemePaletteValue,
+  setThemePreset,
+  themePaletteLayers,
   themesForRenderer,
 } from '@/themes/main';
 import { createBackend } from '@/utils';
@@ -103,6 +105,7 @@ const CHANNELS = [
   'ytmd-sui:check-updates',
   'ytmd-sui:themes',
   'ytmd-sui:theme-color-set',
+  'ytmd-sui:theme-preset-set',
   'ytmd-sui:theme-colors-reset',
   'ytmd-sui:import-theme-css',
   'ytmd-sui:open-themes-folder',
@@ -129,6 +132,7 @@ export const backend = createBackend<
       CHECK_UPDATES,
       THEMES,
       THEME_COLOR_SET,
+      THEME_PRESET_SET,
       THEME_COLORS_RESET,
       IMPORT_THEME_CSS,
       OPEN_THEMES_FOLDER,
@@ -241,12 +245,12 @@ export const backend = createBackend<
       electronUpdater.autoUpdater.checkForUpdatesAndNotify(),
     );
 
-    // Themes: the same state the renderer applies, plus the edits the native
-    // menu's theme submenu offers.
+    // Themes: the same state the renderer applies, plus the edits the modal's
+    // palette editor makes.
     ipc.handle(THEMES, () => ({
       themes: themesForRenderer(),
       selected: config.get('options.theme'),
-      overrides: config.getThemeOverrides(),
+      overrides: themePaletteLayers(),
     }));
 
     ipc.handle(
@@ -257,6 +261,12 @@ export const backend = createBackend<
         notifyThemesChanged(window);
       },
     );
+
+    ipc.handle(THEME_PRESET_SET, (themeId: string, preset: string) => {
+      if (!themeId || typeof preset !== 'string') return;
+      setThemePreset(themeId, preset);
+      notifyThemesChanged(window);
+    });
 
     ipc.handle(THEME_COLORS_RESET, (themeId: string) => {
       if (!themeId) return;

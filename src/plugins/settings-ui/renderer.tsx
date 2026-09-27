@@ -7,6 +7,7 @@ import { waitForElement } from '@/utils/wait-for-element';
 
 import { SettingsModal } from './components/SettingsModal';
 import { ThemePaletteField } from './components/ThemePalette';
+import { ThemePresetField } from './components/ThemePreset';
 import {
   listenStorePush,
   listenThemesPush,
@@ -105,7 +106,10 @@ const teardownUi = () => {
 };
 
 export const renderer = createRenderer({
-  components: { themePalette: ThemePaletteField },
+  components: {
+    themePalette: ThemePaletteField,
+    themePreset: ThemePresetField,
+  },
 
   async start(ctx) {
     started = true;

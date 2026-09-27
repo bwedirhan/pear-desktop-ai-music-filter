@@ -94,6 +94,15 @@ export const getThemeOverrides = (): ThemeOverrides =>
 export const setThemeOverrides = (value: ThemeOverrides) =>
   store.set('options.themeOverrides', value);
 
+/** Preset name per theme id, `custom` for the user's own palette. */
+export type ThemePresetSelection = Record<string, string>;
+
+export const getThemePresets = (): ThemePresetSelection =>
+  (store.get('options.themePresets') as ThemePresetSelection) ?? {};
+
+export const setThemePresets = (value: ThemePresetSelection) =>
+  store.set('options.themePresets', value);
+
 export type ThemeConsent = Record<string, string>;
 
 export const getThemeConsent = (): ThemeConsent =>

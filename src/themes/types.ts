@@ -2,7 +2,7 @@
  * An external theme is a folder under `<userData>/themes`:
  *
  *   my-theme/
- *     theme.json    manifest (name, palette, css files)
+ *     theme.json    manifest (name, palette, presets, css files)
  *     style.css     optional styles, named by the manifest
  *     theme.js      optional script, named by the manifest
  *
@@ -13,11 +13,16 @@
 
 export type ThemePalette = Record<string, string>;
 
+/** Named palettes a theme offers, keyed by the name the user picks. */
+export type ThemePresets = Record<string, ThemePalette>;
+
 export type ThemeManifest = {
   name?: string;
   description?: string;
   author?: string;
   palette?: ThemePalette;
+  /** Alternates the user can switch to, layered over `palette`. */
+  presets?: ThemePresets;
   /** CSS file(s) relative to the theme folder, applied in order. */
   css?: string | string[];
   /**
@@ -34,6 +39,7 @@ export type PearTheme = {
   description?: string;
   author?: string;
   palette: ThemePalette;
+  presets?: ThemePresets;
   /** Concatenated contents of the manifest's css files. */
   css: string;
   js?: ThemeJs;
@@ -72,6 +78,12 @@ export const isCssList = (value: unknown): value is string | string[] =>
   typeof value === 'string' ||
   (Array.isArray(value) && value.every((entry) => typeof entry === 'string'));
 
+export const isPresets = (value: unknown): value is ThemePresets =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.values(value).every(isPalette);
+
 export const parseManifest = (raw: string): ThemeManifest | null => {
   let parsed: unknown;
   try {
@@ -89,6 +101,10 @@ export const parseManifest = (raw: string): ThemeManifest | null => {
     return null;
   }
 
+  if (manifest.presets !== undefined && !isPresets(manifest.presets)) {
+    return null;
+  }
+
   if (manifest.css !== undefined && !isCssList(manifest.css)) {
     return null;
   }
@@ -100,7 +116,30 @@ export const parseManifest = (raw: string): ThemeManifest | null => {
   return manifest;
 };
 
-/** User overrides win over the theme's own palette values. */
+/** Selection meaning "the palette the user edited", not a preset of the theme. */
+export const CUSTOM_PRESET = 'custom';
+
+/** `scrollbar-width` reads as `Scrollbar Width`, for a key or a preset name. */
+export const keyLabel = (key: string) =>
+  key
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+/**
+ * The values a selection layers on top of a theme's own palette: a preset's
+ * entries, the user's custom palette for `custom`, or nothing for '' and for a
+ * name the theme does not define.
+ */
+export const presetPalette = (
+  presets: ThemePresets | undefined,
+  preset: string | undefined,
+  custom: ThemePalette,
+): ThemePalette =>
+  preset === CUSTOM_PRESET ? custom : (preset && presets?.[preset]) || {};
+
+/** The layer a selection applies wins over the theme's own palette values. */
 export const resolvePalette = (
   palette: ThemePalette,
   overrides: ThemePalette,
@@ -122,7 +161,10 @@ export type ThemeState = {
   themes: PearTheme[];
   /** Selected theme id, or '' for no theme. */
   selected: string;
-  /** Per-theme palette overrides, keyed by theme id then palette key. */
+  /**
+   * What each theme layers over its own palette right now, keyed by theme id:
+   * the values of its selected preset, or the user's custom palette.
+   */
   overrides: Record<string, Record<string, string>>;
 };
 

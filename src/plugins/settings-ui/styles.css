@@ -819,6 +819,15 @@
   color: var(--sui-on-surface-variant);
   font-size: 13px;
 }
+/* The name of a variable being added, narrower than its value. */
+.sui-palette__name {
+  flex: 0 0 140px;
+}
+/* The preset pick fills the row, like the theme select above it. */
+.sui-palette__row > .sui-select {
+  flex: 1;
+  min-width: 0;
+}
 .sui-palette__swatch {
   width: 24px;
   height: 24px;

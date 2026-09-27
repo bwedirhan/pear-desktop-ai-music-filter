@@ -1,10 +1,18 @@
 import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 
+import {
+  presetPalette,
+  resolvePalette,
+  type PearTheme,
+  type ThemePalette,
+  type ThemePresets,
+  type ThemeState,
+} from '@/themes/types';
+
 import { getByPath, nestPartial, setByPath } from './paths';
 
 import type { defaultConfig } from '@/config/defaults';
-import type { ThemePalette, ThemeState } from '@/themes/types';
 import type { RendererContext } from '@/types/contexts';
 import type { RestartRequirement } from '@/types/restart';
 
@@ -83,6 +91,8 @@ export const bridge = {
   themes: () => ipc!.invoke('ytmd-sui:themes') as Promise<ThemeState>,
   setThemeColor: (themeId: string, key: string, value: string) =>
     ipc!.invoke('ytmd-sui:theme-color-set', themeId, key, value),
+  setThemePreset: (themeId: string, preset: string) =>
+    ipc!.invoke('ytmd-sui:theme-preset-set', themeId, preset),
   resetThemeColors: (themeId: string) =>
     ipc!.invoke('ytmd-sui:theme-colors-reset', themeId),
   importThemeCss: (paths: string[]) =>
@@ -133,10 +143,42 @@ export const unlistenThemesPush = () => {
   ipc?.off('peard:themes-changed', onThemesPush);
 };
 
-/** Palette variables of the selected theme; empty when it has none. */
-export const themePalette = (): ThemePalette => {
+/** The selected theme, or undefined while nothing is selected or loaded. */
+const selectedTheme = (): PearTheme | undefined => {
   const id = store()?.options.theme ?? '';
-  return themes()?.themes.find((theme) => theme.id === id)?.palette ?? {};
+  return themes()?.themes.find((theme) => theme.id === id);
+};
+
+/** Custom palettes the user edited, keyed by theme id. */
+export const themeOverrides = (): Record<string, ThemePalette> =>
+  (store()?.options.themeOverrides as Record<string, ThemePalette>) ?? {};
+
+/** Preset picked per theme id: a preset name, `custom`, or '' for the default. */
+export const themePresetNames = (): Record<string, string> =>
+  (store()?.options.themePresets as Record<string, string>) ?? {};
+
+/** Presets the selected theme offers; empty when it has none. */
+export const themePresets = (): ThemePresets => selectedTheme()?.presets ?? {};
+
+/** The selected theme's preset pick: a preset name, `custom`, or ''. */
+export const themePreset = (): string => {
+  const theme = selectedTheme();
+  return theme ? (themePresetNames()[theme.id] ?? '') : '';
+};
+
+/** Palette of the selected theme after its preset or custom layer. */
+export const themePalette = (): ThemePalette => {
+  const theme = selectedTheme();
+  if (!theme) return {};
+
+  return resolvePalette(
+    theme.palette,
+    presetPalette(
+      theme.presets,
+      themePreset(),
+      themeOverrides()[theme.id] ?? {},
+    ),
+  );
 };
 
 // ---- widget sizes ----

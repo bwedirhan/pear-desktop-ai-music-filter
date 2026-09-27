@@ -28,18 +28,14 @@ import {
   loadThemes,
   notifyThemesChanged,
   openThemesFolder,
-  resetThemePalette,
   selectTheme,
-  setThemePaletteValue,
-  themePaletteValue,
+  setThemePreset,
 } from './themes/main';
+import { CUSTOM_PRESET, keyLabel } from './themes/types';
 
 import packageJson from '../package.json';
 
 export type MenuTemplate = Electron.MenuItemConstructorOptions[];
-
-const paletteLabel = (key: string) =>
-  key.charAt(0).toUpperCase() + key.slice(1);
 
 // True only if in-app-menu was loaded on launch
 let inAppMenuActivePromise: Promise<boolean> | undefined;
@@ -416,59 +412,57 @@ export const mainMenuTemplate = async (
                   { type: 'separator' as const },
                   {
                     label: t(
-                      'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.colors.label',
+                      'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.label',
                     ),
                     enabled: themes.some(
-                      (theme) => Object.keys(theme.palette).length > 0,
+                      (theme) => Object.keys(theme.presets ?? {}).length > 0,
                     ),
                     // Built per theme, not from the selection: the selection
                     // must not require a menu rebuild (see `select` above), so
-                    // the palette list cannot be filtered by it. Each theme's
-                    // palette also has its own Reset.
+                    // the preset list cannot be filtered by it. Each theme also
+                    // gets its own Default and Custom entries. Variables are
+                    // edited in the settings UI, not here.
                     submenu: themes
-                      .filter((theme) => Object.keys(theme.palette).length > 0)
-                      .map((theme) => ({
-                        label: theme.name,
-                        submenu: [
-                          ...Object.keys(theme.palette).map((key) => ({
-                            label: paletteLabel(key),
-                            type: 'normal' as const,
-                            async click() {
-                              const current = themePaletteValue(theme, key);
-                              const value = await prompt(
-                                {
-                                  title: paletteLabel(key),
-                                  label: paletteLabel(key),
-                                  value: current,
-                                  type: 'input',
-                                  inputAttrs: { type: 'text', required: true },
-                                  width: 380,
-                                  ...promptOptions(),
-                                },
-                                win,
-                              );
+                      .filter(
+                        (theme) => Object.keys(theme.presets ?? {}).length > 0,
+                      )
+                      .map((theme) => {
+                        const chosen = config.getThemePresets()[theme.id] ?? '';
+                        const pick = (preset: string) => {
+                          setThemePreset(theme.id, preset);
+                          notifyThemesChanged(win);
+                        };
 
-                              if (typeof value !== 'string' || !value.trim()) {
-                                return;
-                              }
-
-                              setThemePaletteValue(theme.id, key, value.trim());
-                              notifyThemesChanged(win);
+                        return {
+                          label: theme.name,
+                          submenu: [
+                            {
+                              label: t(
+                                'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.default',
+                              ),
+                              type: 'radio' as const,
+                              checked: chosen === '',
+                              click: () => pick(''),
                             },
-                          })),
-                          { type: 'separator' as const },
-                          {
-                            label: t(
-                              'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.reset-colors',
+                            ...Object.keys(theme.presets ?? {}).map(
+                              (preset) => ({
+                                label: keyLabel(preset),
+                                type: 'radio' as const,
+                                checked: chosen === preset,
+                                click: () => pick(preset),
+                              }),
                             ),
-                            type: 'normal' as const,
-                            click() {
-                              resetThemePalette(theme.id);
-                              notifyThemesChanged(win);
+                            {
+                              label: t(
+                                'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.custom',
+                              ),
+                              type: 'radio' as const,
+                              checked: chosen === CUSTOM_PRESET,
+                              click: () => pick(CUSTOM_PRESET),
                             },
-                          },
-                        ],
-                      })),
+                          ],
+                        };
+                      }),
                   },
                   { type: 'separator' as const },
                   {

@@ -61,6 +61,7 @@ import {
   getThemesDir,
   openThemesFolder,
   setupThemes,
+  themePaletteLayers,
   themesForRenderer,
 } from '@/themes/main';
 import { setUpTray } from '@/tray';
@@ -360,7 +361,9 @@ const initHook = async (win: BrowserWindow) => {
   ipcMain.handle('peard:get-themes', () => ({
     themes: themesForRenderer(),
     selected: config.get('options.theme'),
-    overrides: config.getThemeOverrides(),
+    // The values each theme layers over its own palette: the preset the user
+    // picked, or the palette they edited themselves.
+    overrides: themePaletteLayers(),
   }));
   ipcMain.handle('peard:create-theme-from-css', (_, paths: string[]) =>
     createThemeFromCssFiles(paths),

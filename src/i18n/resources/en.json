@@ -200,6 +200,11 @@
                   "colors": {
                     "label": "Colors"
                   },
+                  "presets": {
+                    "label": "Presets",
+                    "default": "Default",
+                    "custom": "Custom"
+                  },
                   "reset-colors": "Reset colors",
                   "open-themes-folder": "Open themes folder"
                 }
@@ -1417,7 +1422,11 @@
     "stepper-increment": "Increase",
     "fields": {
       "podcast-artist": "Use podcast participants as artists",
-      "podcast-artist-desc": "Off: a podcast episode’s artist is the channel that published it."
+      "podcast-artist-desc": "Off: a podcast episode’s artist is the channel that published it.",
+      "theme-preset": "Preset",
+      "theme-variable-name": "Variable",
+      "theme-variable-value": "Value",
+      "theme-variable-add": "Add variable"
     }
   }
 }

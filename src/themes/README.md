@@ -71,6 +71,10 @@ class on `body`. See [Scripts](#scripts).
     "surface": "#141414",
     "text": "#e5e7eb"
   },
+  "presets": {
+    "blue": { "accent": "#3b82f6", "background": "#0b1220" },
+    "compact": { "radius": "4px" }
+  },
   "css": ["reset.css", "style.css"],
   "js": "theme.js"
 }
@@ -82,6 +86,7 @@ class on `body`. See [Scripts](#scripts).
 | `description` | shown as the menu item tooltip         |
 | `author`      | metadata only                          |
 | `palette`     | see [Variables](#variables)            |
+| `presets`     | see [Presets](#presets)                |
 | `css`         | one or more css files applied in order |
 | `js`          | a single path, see [Scripts](#scripts) |
 
@@ -115,6 +120,38 @@ Every variable will appear under **Colors** for the user to easily modify it.
 The palette is emitted _after_ your stylesheet, so a key it defines beats the
 same variable set in your CSS - which is what makes user overrides and the
 fallbacks below work.
+
+### Presets
+
+A theme can ship named alternates of its palette. The moment a `theme.json` has
+at least one, the user gets a **Preset** picker under **Theme** in the settings,
+plus an **Options ▸ Visual Tweaks ▸ Theme ▸ Presets** submenu, each offering
+**Default**, the presets, and **Custom**:
+
+```json
+{
+  "palette": { "accent": "#ff0000", "background": "#030303" },
+  "presets": {
+    "blue": { "accent": "#0000ff", "background": "#0303aa", "radius": "10px" }
+  }
+}
+```
+
+A preset is layered **on top of** `palette`, so it only has to list what it
+changes - and it may introduce variables the palette never had (`radius` above).
+Preset values are emitted as the same `--pear-theme-<key>` custom properties,
+so nothing in your CSS has to know about them.
+
+- A preset key is title-cased for display, so `"high-contrast"` reads as **High
+  Contrast** in both the settings and the menu. `custom` is reserved for the
+  palette the user edits themselves.
+- **Default** is the theme's own `palette`; a preset the theme no longer defines
+  falls back to it as well.
+- **Custom** is the user's own palette. It is only applied while it is selected
+  - picking a preset afterwards hides it, it does not delete it.
+- Editing a value, or adding a variable, continues from the preset that is
+  selected and switches the pick to **Custom**, so a preset doubles as a
+  starting point the user can tweak.
 
 ### Recolouring YouTube Music
 
@@ -230,7 +267,8 @@ module.exports = {
 `mount` receives a `context`:
 
 - `context.id` — the theme id
-- `context.palette` — the effective palette (theme values plus user overrides)
+- `context.palette` — the effective palette (theme values, plus the selected
+  preset or the user's own)
 - `context.applyPalette(partial)` — re-emit palette variables, e.g. to recolour
   from something you read off the page:
 
@@ -269,10 +307,13 @@ next start.
 
 ## Colors
 
-**Theme ▸ Colors ▸ \<theme\>** edits any key in that theme's palette, plus
-**Reset colors** to drop the overrides for it. Picked values are stored in
-config as overrides per theme, so a theme's own `theme.json` is never modified
-and your tweaks survive a theme update.
+The palette editor under **Settings ▸ Appearance ▸ Theme** lists every variable
+of the selected theme: its palette, the preset it is on, and your own. **Add
+variable** adds one the theme never defined, and **Reset colors** drops your own
+values and returns the theme to its own palette. Values are stored in config per
+theme, so a theme's own `theme.json` is never modified and your tweaks survive a
+theme update. The menus only switch between themes and presets; the variables
+are edited here.
 
 ## Adding and removing
 
