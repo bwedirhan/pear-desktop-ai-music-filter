@@ -421,8 +421,14 @@ export const SettingsModal = (props: {
             </button>
           </header>
 
-          <Show when={restartFlagged()}>
-            <div class="sui-restart">
+          <div class="sui-body">
+            {/* Always mounted so it can animate out; `inert` keeps the hidden
+                buttons out of the tab order. */}
+            <div
+              class="sui-restart"
+              classList={{ 'sui-restart--open': restartFlagged() }}
+              inert={!restartFlagged()}
+            >
               <Icon name="schedule" size={20} />
               <span class="sui-restart__text">
                 {t('settings-ui.restart-banner')}
@@ -438,9 +444,7 @@ export const SettingsModal = (props: {
                 {t('settings-ui.restart-now')}
               </button>
             </div>
-          </Show>
 
-          <div class="sui-body">
             <Show fallback={<div class="sui-empty">…</div>} when={store()}>
               {/* search mode */}
               <Show when={isSearching()}>

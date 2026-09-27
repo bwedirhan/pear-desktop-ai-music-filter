@@ -210,6 +210,8 @@
   display: flex;
   flex-direction: column;
   background: var(--sui-surface-low);
+  /* lets .sui-restart transition height: 0 <-> auto (Chromium 129+) */
+  interpolate-size: allow-keywords;
 }
 .sui-header {
   height: 60px;
@@ -248,15 +250,40 @@
   background: var(--sui-surface-highest);
 }
 
+/* Alert overlaying the scrolling body: it reserves its own space in the flow
+   (so nothing below it is hidden) without shrinking the body's box. Stays
+   mounted and collapses, so showing/hiding animates both the fade and the
+   space it takes. */
 .sui-restart {
-  margin: 14px 20px 0;
-  padding: 12px 12px 12px 16px;
-  border-radius: 14px;
-  background: var(--sui-tertiary-container);
-  color: var(--sui-on-tertiary-container);
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
+  height: 0;
+  margin-bottom: 0;
+  padding: 0 12px 0 16px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--sui-tertiary-container);
+  color: var(--sui-on-tertiary-container);
+  opacity: 0;
+  translate: 0 -8px;
+  transition:
+    height 0.18s ease,
+    padding-top 0.18s ease,
+    padding-bottom 0.18s ease,
+    margin-bottom 0.18s ease,
+    opacity 0.18s ease,
+    translate 0.18s ease;
+}
+.sui-restart--open {
+  height: auto;
+  margin-bottom: 14px;
+  padding: 12px 12px 12px 16px;
+  opacity: 1;
+  translate: 0 0;
 }
 .sui-restart__text {
   flex: 1;
