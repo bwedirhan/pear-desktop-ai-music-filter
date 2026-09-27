@@ -4,10 +4,14 @@ import { t } from '@/i18n';
 
 import { Icon } from './Icon';
 
+import iconYtm from '../../../../assets/icon-ytm.png?inline';
 import iconSvg from '../../../../assets/icon.svg?raw';
-import { bridge, type AppMeta } from '../state';
+import { bridge, store, type AppMeta } from '../state';
 
+// Both logos inline: the YouTube Music one only ships as a PNG, and the
+// renderer lives on music.youtube.com, so no relative asset URLs.
 const ICON_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(iconSvg)}`;
+const YTM_ICON_SRC = iconYtm;
 
 const REPO = 'https://github.com/pear-devs/pear-desktop';
 
@@ -36,6 +40,10 @@ export const AboutSection = (props: {
 }) => {
   const meta = () => props.meta;
   const [copied, setCopied] = createSignal(false);
+
+  // The same artwork the app registers with the OS: the original logo, or
+  // YouTube Music's when that option is on.
+  const logo = () => (store()?.options.useYtmIcons ? YTM_ICON_SRC : ICON_SRC);
 
   const reportIssueUrl = () => {
     const m = meta();
@@ -124,7 +132,7 @@ export const AboutSection = (props: {
   return (
     <div class="sui-about">
       <div class="sui-about__header">
-        <img alt="" class="sui-about__logo" src={ICON_SRC} />
+        <img alt="" class="sui-about__logo" src={logo()} />
         <div class="sui-about__name">Pear Desktop</div>
         <Show when={meta()}>
           <div class="sui-about__version">v{meta()!.version}</div>

@@ -15,6 +15,10 @@ declare module '*.svg?inline' {
 
   export default base64;
 }
+declare module '*.png?inline' {
+  const src: string;
+  export default src;
+}
 declare module '*.svg?raw' {
   const html: string;
 
