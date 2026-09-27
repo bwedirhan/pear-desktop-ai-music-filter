@@ -22,7 +22,7 @@ import {
 } from './Controls';
 import { Icon } from './Icon';
 
-import { pickDirectory, pickFile } from '../state';
+import { bridge, pickDirectory, pickFile } from '../state';
 
 import type {
   ActionField,
@@ -96,7 +96,10 @@ const SelectControl = (p: {
 }) => {
   const { options, refetch } = useResolvedOptions(() => p.field.options);
   const value = () => (p.value as string | number | undefined) ?? '';
-  const isDynamic = () => typeof p.field.options === 'function';
+  // Bundled lists (languages) are resolved lazily but cant go stale, so they
+  // get no refresh button and no re-read.
+  const isRefreshable = () =>
+    typeof p.field.options === 'function' && p.field.refreshable !== false;
 
   // A stored value missing from a dynamic list means the list is stale (a
   // theme was imported, a device plugged in): re-read it once per value.
@@ -104,7 +107,7 @@ const SelectControl = (p: {
   createEffect(() => {
     const current = value();
     if (
-      !isDynamic() ||
+      !isRefreshable() ||
       current === '' ||
       current === refreshedFor ||
       options().length === 0 ||
@@ -116,6 +119,14 @@ const SelectControl = (p: {
     refreshedFor = current;
     refetch();
   });
+
+  // Same as the menu's Language > Sync entries: the value comes back from the
+  // backend (which reports unsupported languages itself), then goes through the
+  // normal change path so the restart banner and the store stay in step.
+  const syncFromYouTube = async () => {
+    const language = await bridge.languageFromYouTube();
+    if (language) p.onChange(language);
+  };
 
   return (
     <div class="sui-field__control">
@@ -136,10 +147,31 @@ const SelectControl = (p: {
             value={value()}
           />
         </Show>
-        <Show when={isDynamic()}>
+        <Show when={isRefreshable()}>
           <RefreshButton onRefresh={() => refetch()} />
         </Show>
       </div>
+      <Show when={p.field.languageSync}>
+        <div class="sui-control-actions">
+          <span>
+            {t('main.menu.options.submenu.language.submenu.sync.label')}
+          </span>
+          <button class="sui-fieldbtn" onClick={syncFromYouTube} type="button">
+            {t(
+              'main.menu.options.submenu.language.submenu.sync.submenu.from-youtube',
+            )}
+          </button>
+          <button
+            class="sui-fieldbtn"
+            onClick={() => bridge.languageToYouTube()}
+            type="button"
+          >
+            {t(
+              'main.menu.options.submenu.language.submenu.sync.submenu.to-youtube',
+            )}
+          </button>
+        </div>
+      </Show>
     </div>
   );
 };

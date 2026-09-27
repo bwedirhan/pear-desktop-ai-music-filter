@@ -143,7 +143,14 @@ export const buildAppSections = (): AppSection[] => {
               'options.language',
               menuLabel('language.label'),
               buildLanguageOptions,
-              { variant: 'dropdown', ...AT_STARTUP },
+              {
+                variant: 'dropdown',
+                // The bundled language list cant change, and the field is
+                // YouTube's own language, so it syncs instead of refreshing.
+                refreshable: false,
+                languageSync: true,
+                ...AT_STARTUP,
+              },
             ),
           ],
         },

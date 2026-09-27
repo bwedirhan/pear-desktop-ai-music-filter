@@ -10,7 +10,9 @@ import {
 import electronUpdater from 'electron-updater';
 
 import * as config from '@/config';
+import { t } from '@/i18n';
 import { restart } from '@/providers/app-controls';
+import { setYouTubeLanguage, youtubeLanguage } from '@/providers/language-sync';
 import { applyOptionEffects } from '@/providers/option-effects';
 import {
   createThemeFromCssFiles,
@@ -42,6 +44,8 @@ const CHANNELS = [
   'ytmd-sui:theme-colors-reset',
   'ytmd-sui:import-theme-css',
   'ytmd-sui:open-themes-folder',
+  'ytmd-sui:language-from-youtube',
+  'ytmd-sui:language-to-youtube',
 ];
 
 export const backend = createBackend<
@@ -165,6 +169,28 @@ export const backend = createBackend<
     });
 
     ipc.handle('ytmd-sui:open-themes-folder', () => openThemesFolder());
+
+    // The menu's Language > Sync entries, so the modal can offer them too.
+    ipc.handle('ytmd-sui:language-from-youtube', async () => {
+      const language = await youtubeLanguage(window);
+
+      if (!language) {
+        dialog.showMessageBoxSync(window, {
+          title: t(
+            'main.menu.options.submenu.language.submenu.sync.failure.dialog.title',
+          ),
+          message: t(
+            'main.menu.options.submenu.language.submenu.sync.failure.dialog.message',
+          ),
+        });
+      }
+
+      return language;
+    });
+
+    ipc.handle('ytmd-sui:language-to-youtube', () =>
+      setYouTubeLanguage(window, config.get('options.language') ?? 'en'),
+    );
 
     this.unwatch = config.watch(() => {
       const store = config.getStore();

@@ -29,6 +29,17 @@ export interface SelectField extends SettingFieldBase {
   /** `radio` renders inline chips (default), `dropdown` a native select. */
   variant?: 'radio' | 'dropdown';
   options: SettingOptions;
+  /**
+   * Offer the refresh button, and re-read the list when the stored value is
+   * missing from it. Only useful for lists that change at runtime (files,
+   * devices). @default true
+   */
+  refreshable?: boolean;
+  /**
+   * This field is YouTube's own UI language, so offer the menu's
+   * "From YouTube" / "To YouTube" sync buttons next to it.
+   */
+  languageSync?: boolean;
 }
 
 export interface SliderField extends SettingFieldBase {

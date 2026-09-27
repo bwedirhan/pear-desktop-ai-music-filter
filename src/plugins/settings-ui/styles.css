@@ -656,6 +656,16 @@
   flex: 1;
   min-width: 0;
 }
+/* A row under a control: a label followed by its buttons, e.g. sync language.
+   The muted typography is for the label; the buttons set their own. */
+.sui-control-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--sui-on-surface-variant);
+  font-size: 12px;
+}
 .sui-refreshbtn {
   width: 40px;
   height: 40px;

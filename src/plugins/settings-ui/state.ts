@@ -67,6 +67,12 @@ export const bridge = {
   importThemeCss: (paths: string[]) =>
     ipc!.invoke('ytmd-sui:import-theme-css', paths),
   openThemesFolder: () => ipc!.invoke('ytmd-sui:open-themes-folder'),
+  /** YouTube's UI language as an app language, or undefined when we dont ship it. */
+  languageFromYouTube: () =>
+    ipc!.invoke('ytmd-sui:language-from-youtube') as Promise<
+      string | undefined
+    >,
+  languageToYouTube: () => ipc!.invoke('ytmd-sui:language-to-youtube'),
 };
 
 export const refreshStore = async () => {

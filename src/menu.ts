@@ -19,6 +19,7 @@ import * as config from './config';
 import { getAllMenuTemplate, loadAllMenuPlugins } from './loader/menu';
 import { restart } from './providers/app-controls';
 import { startingPages } from './providers/extracted-data';
+import { setYouTubeLanguage, youtubeLanguage } from './providers/language-sync';
 import { applyOptionEffects } from './providers/option-effects';
 import promptOptions from './providers/prompt-options';
 import { stripMusicSubdomain } from './providers/share-url';
@@ -668,53 +669,32 @@ export const mainMenuTemplate = async (
                     'main.menu.options.submenu.language.submenu.sync.submenu.from-youtube',
                   ),
                   type: 'normal',
-                  click() {
-                    win.webContents.session.cookies
-                      .get({ name: 'PREF' })
-                      .then((cookies) => {
-                        let ytLang =
-                          cookies[0].value
-                            .split('&')
-                            .find((c) => c.startsWith('hl='))
-                            ?.split('=')[1] || 'en';
-                        // strip locale
-                        if (ytLang.startsWith('en-')) ytLang = 'en';
-                        else if (ytLang.startsWith('fr-')) ytLang = 'fr';
-                        else if (ytLang.startsWith('es-')) ytLang = 'es';
+                  async click() {
+                    const ytLang = await youtubeLanguage(win);
 
-                        // portuguese is reversed for some reason
-                        if (ytLang == 'pt') ytLang = 'pt-BR';
-                        else if (ytLang == 'pt-PT') ytLang = 'pt';
-
-                        // we dont have zh-HK
-                        else if (ytLang == 'zh-HK') ytLang = 'zh-TW';
-
-                        // norsk is nb
-                        else if (ytLang == 'no') ytLang = 'nb';
-
-                        if (!langResources[ytLang]) {
-                          dialog.showMessageBoxSync(win, {
-                            title: t(
-                              'main.menu.options.submenu.language.submenu.sync.failure.dialog.title',
-                            ),
-                            message: t(
-                              'main.menu.options.submenu.language.submenu.sync.failure.dialog.message',
-                            ),
-                          });
-                        } else {
-                          config.setMenuOption('options.language', ytLang);
-                          refreshMenu(win);
-                          setLanguage(ytLang);
-                          dialog.showMessageBox(win, {
-                            title: t(
-                              'main.menu.options.submenu.language.dialog.title',
-                            ),
-                            message: t(
-                              'main.menu.options.submenu.language.dialog.message',
-                            ),
-                          });
-                        }
+                    if (!ytLang) {
+                      dialog.showMessageBoxSync(win, {
+                        title: t(
+                          'main.menu.options.submenu.language.submenu.sync.failure.dialog.title',
+                        ),
+                        message: t(
+                          'main.menu.options.submenu.language.submenu.sync.failure.dialog.message',
+                        ),
                       });
+                      return;
+                    }
+
+                    config.setMenuOption('options.language', ytLang);
+                    refreshMenu(win);
+                    setLanguage(ytLang);
+                    dialog.showMessageBox(win, {
+                      title: t(
+                        'main.menu.options.submenu.language.dialog.title',
+                      ),
+                      message: t(
+                        'main.menu.options.submenu.language.dialog.message',
+                      ),
+                    });
                   },
                 },
                 {
@@ -723,49 +703,10 @@ export const mainMenuTemplate = async (
                   ),
                   type: 'normal',
                   click() {
-                    let lang = config.get('options.language') ?? 'en';
-
-                    // portuguese is reversed for some reason
-                    if (lang == 'pt') lang = 'pt-PT';
-                    else if (lang == 'pt-BR') lang = 'pt';
-
-                    // norsk is no
-                    else if (lang == 'nb') lang = 'no';
-
-                    // be-Latn doesnt exist in ytm
-                    else if (lang == 'be-Latn') lang = 'be';
-
-                    // these dont exist in ytm
-                    else if (lang == 'ckb')
-                      lang = 'en'; // placeholder
-                    else if (lang == 'kmr')
-                      lang = 'en'; // placeholder
-                    else if (lang == 'he')
-                      lang = 'en'; // placeholder
-                    else if (lang == 'qu')
-                      lang = 'en'; // placeholder
-                    else if (lang == 'sah') lang = 'ru'; // placeholder
-
-                    win.webContents.session.cookies
-                      .get({ name: 'PREF' })
-                      .then((cookies) => {
-                        const prefs = cookies[0];
-                        const prefsVal = prefs.value || '';
-                        const hlEntry =
-                          prefsVal
-                            .split('&')
-                            .find((c) => c.startsWith('hl=')) || 'hl=en';
-                        win.webContents.session.cookies
-                          .set({
-                            domain: prefs.domain,
-                            name: prefs.name,
-                            value: prefsVal.replace(hlEntry, `hl=${lang}`),
-                            url: 'https://music.youtube.com',
-                          })
-                          .then(() => {
-                            win.webContents.reload();
-                          });
-                      });
+                    setYouTubeLanguage(
+                      win,
+                      config.get('options.language') ?? 'en',
+                    );
                   },
                 },
               ],
