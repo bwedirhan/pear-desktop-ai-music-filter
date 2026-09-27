@@ -58,7 +58,7 @@ export const SettingsModal = (props: {
 }) => {
   const [active, setActive] = createSignal<string>('general');
   const [query, setQuery] = createSignal('');
-  const [expanded, setExpanded] = createSignal<string | null>(null);
+  const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set());
   const [restartFlagged, setRestartFlagged] = createSignal(false);
   const [restartRequirements, setRestartRequirements] = createSignal<
     RestartRequirement[]
@@ -304,13 +304,18 @@ export const SettingsModal = (props: {
     <PluginCard
       description={p.meta.description}
       enabled={pluginEnabled(p.meta)}
-      expanded={expanded() === p.meta.id}
+      expanded={expanded().has(p.meta.id)}
       getValue={(key) => pluginVal(p.meta, key)}
       groups={p.groups}
       hasSettings={p.groups.length > 0}
       name={p.meta.name}
       onExpand={() =>
-        setExpanded((cur) => (cur === p.meta.id ? null : p.meta.id))
+        setExpanded((current) => {
+          const next = new Set(current);
+          if (next.has(p.meta.id)) next.delete(p.meta.id);
+          else next.add(p.meta.id);
+          return next;
+        })
       }
       onToggle={(v) => togglePlugin(p.meta, v)}
       resolveComponent={resolveComponent}
@@ -368,7 +373,8 @@ export const SettingsModal = (props: {
                   onClick={() => {
                     setActive(section.id);
                     setQuery('');
-                    setExpanded(null);
+                    // Switching sections starts them all collapsed again.
+                    setExpanded(new Set<string>());
                   }}
                   type="button"
                 >
