@@ -637,6 +637,9 @@
   width: 76px;
   height: 40px;
   text-align: center;
+  /* The −/+ buttons are the stepper; native spinners would duplicate them. */
+  appearance: textfield;
+  -webkit-appearance: textfield;
   border-radius: 8px;
   background: var(--sui-surface-high);
   color: var(--sui-on-surface);
@@ -644,6 +647,13 @@
   outline: none;
   font-family: inherit;
   font-size: 14px;
+}
+/* Chromium draws the spinners from these pseudo-elements, which carry their own
+   appearance, so the input's `appearance` above does not remove them. */
+.sui-stepper__input::-webkit-outer-spin-button,
+.sui-stepper__input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
 }
 .sui-stepper__input:focus {
   border-color: var(--sui-primary);

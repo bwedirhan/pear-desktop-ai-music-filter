@@ -1,4 +1,4 @@
-import { For, Show } from 'solid-js';
+import { For, onCleanup, Show } from 'solid-js';
 
 import type { SettingOption } from '@/types/settings';
 
@@ -119,6 +119,10 @@ export const TextInput = (props: {
   />
 );
 
+/** Held spinners repeat: a short delay, then a steady rate. */
+const HOLD_DELAY_MS = 400;
+const HOLD_REPEAT_MS = 70;
+
 export const NumberStepper = (props: {
   value: number;
   min?: number;
@@ -138,12 +142,48 @@ export const NumberStepper = (props: {
     if (Number.isFinite(v)) props.onChange(clamp(v));
   };
 
+  // Step once on press, then keep stepping while held, like the spinners these
+  // buttons replace. Takes plain numbers: the repeat must not read props.
+  let holdTimer: number | undefined;
+  const stopHold = () => {
+    clearTimeout(holdTimer);
+    holdTimer = undefined;
+    window.removeEventListener('pointerup', stopHold);
+    window.removeEventListener('pointercancel', stopHold);
+    window.removeEventListener('blur', stopHold);
+  };
+  const holdToRepeat = (start: number, delta: number) => {
+    stopHold();
+    let next = start;
+    set(next);
+    // Self-rescheduling rather than an interval, so the delay is the only knob.
+    const bump = () => {
+      next = clamp(next + delta);
+      set(next);
+      holdTimer = window.setTimeout(bump, HOLD_REPEAT_MS);
+    };
+    holdTimer = window.setTimeout(bump, HOLD_DELAY_MS);
+    // Release anywhere, or focus loss, has to end it.
+    window.addEventListener('pointerup', stopHold);
+    window.addEventListener('pointercancel', stopHold);
+    window.addEventListener('blur', stopHold);
+  };
+  onCleanup(stopHold);
+
   return (
     <div class="sui-stepper">
       <button
         aria-label="decrement"
         class="sui-stepper__btn"
-        onClick={() => set(props.value - step())}
+        // Held pointers step on pointerdown; that click is then detail 1 and is
+        // ignored, leaving click to keyboard activation only.
+        onClick={(e) => {
+          if (e.detail === 0) set(props.value - step());
+        }}
+        onPointerDown={(e) => {
+          if (e.button === 0)
+            holdToRepeat(clamp(props.value - step()), -step());
+        }}
         type="button"
       >
         −
@@ -163,7 +203,12 @@ export const NumberStepper = (props: {
       <button
         aria-label="increment"
         class="sui-stepper__btn"
-        onClick={() => set(props.value + step())}
+        onClick={(e) => {
+          if (e.detail === 0) set(props.value + step());
+        }}
+        onPointerDown={(e) => {
+          if (e.button === 0) holdToRepeat(clamp(props.value + step()), step());
+        }}
         type="button"
       >
         +
