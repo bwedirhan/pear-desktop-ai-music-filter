@@ -20,6 +20,18 @@ export default createPlugin({
   restartNeeded: false,
   config: defaultConfig,
   stylesheets: [style],
+  settings: [
+    {
+      type: 'switch',
+      key: 'displaySeconds',
+      label: () => t('plugins.clock.menu.format.display-seconds'),
+    },
+    {
+      type: 'switch',
+      key: 'hour12',
+      label: () => t('plugins.clock.settings.hour-12'),
+    },
+  ],
   menu: async ({ getConfig, setConfig }): Promise<MenuTemplate> => {
     const config = await getConfig();
 

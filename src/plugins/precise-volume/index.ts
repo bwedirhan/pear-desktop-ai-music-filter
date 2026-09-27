@@ -56,18 +56,23 @@ export default createPlugin({
       type: 'switch',
       key: 'arrowsShortcut',
       label: () => t('plugins.precise-volume.settings.arrows-shortcut'),
+      // The listeners are wired once, on player API ready.
+      restartNeeded: true,
     },
     {
       type: 'text',
       key: 'globalShortcuts.volumeUp',
       label: () => t('plugins.precise-volume.settings.shortcut-up'),
       placeholder: () => 'e.g. Ctrl+Shift+Up',
+      // Registered by the backend on start, never re-read.
+      restartNeeded: true,
     },
     {
       type: 'text',
       key: 'globalShortcuts.volumeDown',
       label: () => t('plugins.precise-volume.settings.shortcut-down'),
       placeholder: () => 'e.g. Ctrl+Shift+Down',
+      restartNeeded: true,
     },
   ],
   stylesheets: [hudStyle],

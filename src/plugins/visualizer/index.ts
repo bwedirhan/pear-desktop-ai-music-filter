@@ -9,6 +9,9 @@ import {
 } from './visualizers';
 import { type Visualizer } from './visualizers/visualizer';
 
+/** Effects the bundled vudio build can draw. */
+export type VudioEffect = 'waveform' | 'circlewave' | 'circlebar' | 'lighting';
+
 type WaveColor = {
   gradient: string[];
   rotate?: number;
@@ -22,7 +25,7 @@ export type VisualizerPluginConfig = {
     blendTimeInSeconds: number;
   };
   vudio: {
-    effect: string;
+    effect: VudioEffect;
     accuracy: number;
     lighting: {
       maxHeight: number;
@@ -33,8 +36,8 @@ export type VisualizerPluginConfig = {
       shadowColor: string;
       fadeSide: boolean;
       prettify: boolean;
-      horizontalAlign: string;
-      verticalAlign: string;
+      horizontalAlign: 'left' | 'center' | 'right';
+      verticalAlign: 'top' | 'middle' | 'bottom';
       dottify: boolean;
     };
   };
@@ -137,13 +140,150 @@ export default createPlugin({
   stylesheets: [emptyStyle],
   settings: [
     {
-      type: 'select',
-      key: 'type',
-      label: () => t('plugins.visualizer.menu.visualizer-type'),
-      options: (['butterchurn', 'vudio', 'wave'] as const).map((value) => ({
-        value,
-        label: () => value,
-      })),
+      fields: [
+        {
+          type: 'select',
+          key: 'type',
+          label: () => t('plugins.visualizer.menu.visualizer-type'),
+          options: (['butterchurn', 'vudio', 'wave'] as const).map((value) => ({
+            value,
+            label: () => value,
+          })),
+        },
+      ],
+    },
+    {
+      title: () => 'Butterchurn',
+      fields: [
+        {
+          type: 'text',
+          key: 'butterchurn.preset',
+          label: () => t('plugins.visualizer.settings.preset'),
+          placeholder: () => 'Flexi - mindblob',
+        },
+        {
+          type: 'slider',
+          key: 'butterchurn.blendTimeInSeconds',
+          label: () => t('plugins.visualizer.settings.blend-time'),
+          min: 0,
+          max: 10,
+          step: 0.1,
+          unit: 's',
+        },
+      ],
+    },
+    {
+      title: () => 'Vudio',
+      fields: [
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'vudio.effect',
+          label: () => t('plugins.visualizer.settings.effect'),
+          options: ['waveform', 'circlewave', 'circlebar', 'lighting'].map(
+            (value) => ({ value, label: () => value }),
+          ),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'vudio.accuracy',
+          label: () => t('plugins.visualizer.settings.accuracy'),
+          // Vudio sets `analyser.fftSize = accuracy * 2`, so only powers of
+          // two within the Web Audio fftSize range are valid.
+          options: [32, 64, 128, 256, 512, 1024].map((value) => ({
+            value,
+            label: () => String(value),
+          })),
+        },
+        {
+          type: 'slider',
+          key: 'vudio.lighting.maxHeight',
+          label: () => t('plugins.visualizer.settings.max-height'),
+          min: 10,
+          max: 500,
+          step: 5,
+          unit: 'px',
+        },
+        {
+          type: 'slider',
+          key: 'vudio.lighting.maxSize',
+          label: () => t('plugins.visualizer.settings.max-size'),
+          min: 1,
+          max: 50,
+          step: 1,
+          unit: 'px',
+        },
+        {
+          type: 'slider',
+          key: 'vudio.lighting.lineWidth',
+          label: () => t('plugins.visualizer.settings.line-width'),
+          min: 1,
+          max: 10,
+          step: 1,
+          unit: 'px',
+        },
+        {
+          type: 'text',
+          key: 'vudio.lighting.color',
+          label: () => t('plugins.visualizer.settings.color'),
+          placeholder: () => '#49f3f7',
+        },
+        {
+          type: 'slider',
+          key: 'vudio.lighting.shadowBlur',
+          label: () => t('plugins.visualizer.settings.shadow-blur'),
+          min: 0,
+          max: 20,
+          step: 1,
+          unit: 'px',
+        },
+        {
+          type: 'text',
+          key: 'vudio.lighting.shadowColor',
+          label: () => t('plugins.visualizer.settings.shadow-color'),
+          placeholder: () => 'rgba(244,244,244,.5)',
+        },
+        {
+          type: 'switch',
+          key: 'vudio.lighting.fadeSide',
+          label: () => t('plugins.visualizer.settings.fade-side'),
+        },
+        {
+          type: 'switch',
+          key: 'vudio.lighting.prettify',
+          label: () => t('plugins.visualizer.settings.prettify'),
+          description: () =>
+            t('plugins.visualizer.settings.prettify-description'),
+        },
+        {
+          type: 'switch',
+          key: 'vudio.lighting.dottify',
+          label: () => t('plugins.visualizer.settings.dottify'),
+          description: () =>
+            t('plugins.visualizer.settings.dottify-description'),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'vudio.lighting.horizontalAlign',
+          label: () => t('plugins.visualizer.settings.horizontal-align'),
+          options: ['left', 'center', 'right'].map((value) => ({
+            value,
+            label: () => value,
+          })),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'vudio.lighting.verticalAlign',
+          label: () => t('plugins.visualizer.settings.vertical-align'),
+          options: ['top', 'middle', 'bottom'].map((value) => ({
+            value,
+            label: () => value,
+          })),
+        },
+      ],
     },
   ],
   menu: async ({ getConfig, setConfig }) => {

@@ -16,6 +16,14 @@ export default createPlugin({
     enabled: false,
     onlySkipBeginning: false,
   } as SkipSilencesPluginConfig,
+  settings: [
+    {
+      type: 'switch',
+      key: 'onlySkipBeginning',
+      label: () => t('plugins.skip-silences.settings.only-skip-beginning'),
+      restartNeeded: true,
+    },
+  ],
   renderer: {
     start: onRendererLoad,
     stop: onRendererUnload,

@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import { Platform } from '@/types/plugins';
 import { createPlugin } from '@/utils';
 
@@ -26,6 +27,13 @@ export default createPlugin({
   restartNeeded: false,
   platform: Platform.macOS,
   config: defaultConfig,
+  settings: [
+    {
+      type: 'switch',
+      key: 'includePronunciation',
+      label: () => t('plugins.statusbar-lyrics.settings.include-pronunciation'),
+    },
+  ],
   menu,
   backend,
   renderer,

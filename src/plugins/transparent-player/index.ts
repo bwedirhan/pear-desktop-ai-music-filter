@@ -40,7 +40,8 @@ export default createPlugin({
       variant: 'dropdown',
       key: 'type',
       label: () => t('plugins.transparent-player.menu.type.label'),
-      restartNeeded: true,
+      description: () =>
+        t('plugins.transparent-player.settings.type-description'),
       options: () => {
         const materials = window.electronIs.windows()
           ? [MaterialType.NONE, ...WINDOWS_MATERIALS]

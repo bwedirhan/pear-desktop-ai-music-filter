@@ -67,7 +67,8 @@
         },
         "detail": "We are sorry for the inconvenience! please choose what to do:",
         "message": "The Application is Unresponsive",
-        "title": "Window Unresponsive"
+        "title": "Window Unresponsive",
+        "details": "Reason: {{error}}"
       },
       "update-available": {
         "buttons": {
@@ -385,6 +386,9 @@
           "label": "Enter the port for the API server:",
           "title": "Port"
         }
+      },
+      "settings": {
+        "choose-file": "Choose file…"
       }
     },
     "audio-compressor": {
@@ -461,6 +465,9 @@
           "display-seconds": "Display Seconds",
           "24-hour-format": "24-Hour Format"
         }
+      },
+      "settings": {
+        "hour-12": "Use 12-hour format"
       }
     },
     "compact-sidebar": {
@@ -497,7 +504,8 @@
         "scaling": {
           "linear": "Linear",
           "logarithmic": "Logarithmic"
-        }
+        },
+        "seconds-before-end-description": "Seconds before the end of a track at which the crossfade to the next one starts"
       }
     },
     "custom-output-device": {
@@ -566,7 +574,11 @@
       "menu": {
         "blocker": "Blocker"
       },
-      "name": "Do Not Track"
+      "name": "Do Not Track",
+      "settings": {
+        "cache": "Cache blocklists",
+        "disable-default-lists": "Disable default blocklists"
+      }
     },
     "downloader": {
       "backend": {
@@ -639,6 +651,10 @@
       },
       "templates": {
         "button": "Download"
+      },
+      "settings": {
+        "finish-folder": "Folder for finished downloads",
+        "finish-folder-description": "Leave unset to use the download folder above."
       }
     },
     "equalizer": {
@@ -771,7 +787,13 @@
       "menu": {
         "log-to-console": "Log recovery events to console"
       },
-      "name": "Playback Recovery"
+      "name": "Playback Recovery",
+      "settings": {
+        "stall-timeout": "Stall timeout",
+        "stall-timeout-description": "How long playback may make no progress before a recovery attempt",
+        "max-retries": "Max retries",
+        "max-retries-description": "Number of recovery attempts before skipping to the next track"
+      }
     },
     "picture-in-picture": {
       "description": "Allows to switch the app to picture-in-picture mode",
@@ -789,7 +811,14 @@
         },
         "save-window-position": "Save window position",
         "save-window-size": "Save window size",
-        "use-native-pip": "Use browser native PiP"
+        "use-native-pip": "Use browser native PiP",
+        "prompt": {
+          "title": "Picture-in-Picture",
+          "label": "Configure the Picture-in-Picture hotkey",
+          "keybind-options": {
+            "hotkey": "Hotkey to toggle Picture-in-Picture"
+          }
+        }
       },
       "name": "Picture-in-picture",
       "templates": {
@@ -917,6 +946,10 @@
           "title": "MusicBrainz Contact Email",
           "label": "Enter an email for MusicBrainz API:"
         }
+      },
+      "settings": {
+        "lastfm-api-root": "Last.fm API URL",
+        "musicbrainz-email-description": "Used as contact info for the MusicBrainz API; required for MusicBrainz metadata correction"
       }
     },
     "seek-shortcuts": {
@@ -940,11 +973,18 @@
           "label": "Choose Global Keybinds for Songs Control:",
           "title": "Global Keybinds"
         }
+      },
+      "settings": {
+        "global-keybinds": "Global keybinds (work app-wide)",
+        "local-keybinds": "Local keybinds (only while the window is focused)"
       }
     },
     "skip-silences": {
       "description": "Automatically skip silences sections in songs",
-      "name": "Skip Silences"
+      "name": "Skip Silences",
+      "settings": {
+        "only-skip-beginning": "Only skip silence at the beginning of a track"
+      }
     },
     "sponsorblock": {
       "description": "Automatically Skips non-music parts like intro/outro or parts of music videos where the song isn't playing",
@@ -1235,6 +1275,9 @@
             "none": "None"
           }
         }
+      },
+      "settings": {
+        "type-description": "Background material used for window transparency"
       }
     },
     "tuna-obs": {
@@ -1277,7 +1320,31 @@
       "menu": {
         "visualizer-type": "Visualizer Type"
       },
-      "name": "Visualizer"
+      "name": "Visualizer",
+      "settings": {
+        "preset": "Preset",
+        "blend-time": "Blend time",
+        "effect": "Effect",
+        "accuracy": "Accuracy",
+        "max-height": "Max height",
+        "max-size": "Max size",
+        "line-width": "Line width",
+        "color": "Color",
+        "shadow-blur": "Shadow blur",
+        "shadow-color": "Shadow color",
+        "fade-side": "Fade sides",
+        "prettify": "Prettify",
+        "prettify-description": "Taper the bars towards the edges",
+        "dottify": "Dottify",
+        "dottify-description": "Draw dots instead of a continuous line",
+        "horizontal-align": "Horizontal alignment",
+        "vertical-align": "Vertical alignment"
+      }
+    },
+    "statusbar-lyrics": {
+      "settings": {
+        "include-pronunciation": "Include pronunciation"
+      }
     }
   },
   "settings-ui": {
@@ -1351,6 +1418,7 @@
       "network": "Network",
       "performance": "Performance",
       "configuration": "Configuration"
-    }
+    },
+    "choose-files": "Choose files…"
   }
 }

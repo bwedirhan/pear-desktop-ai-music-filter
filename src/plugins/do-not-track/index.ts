@@ -62,6 +62,18 @@ export default createPlugin({
         label: () => blocker,
       })),
     },
+    {
+      type: 'switch',
+      key: 'cache',
+      label: () => t('plugins.do-not-track.settings.cache'),
+      restartNeeded: true,
+    },
+    {
+      type: 'switch',
+      key: 'disableDefaultLists',
+      label: () => t('plugins.do-not-track.settings.disable-default-lists'),
+      restartNeeded: true,
+    },
   ],
   menu: async ({ getConfig, setConfig }) => {
     const config = await getConfig();

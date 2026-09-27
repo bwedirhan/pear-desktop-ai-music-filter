@@ -30,6 +30,54 @@ export default createPlugin({
     forceHide: false,
     align: 'left',
   } as VideoTogglePluginConfig,
+  settings: [
+    {
+      type: 'select',
+      key: 'mode',
+      label: () => t('plugins.video-toggle.menu.mode.label'),
+      // Applied when the renderer starts, not on config change.
+      restartNeeded: true,
+      options: [
+        {
+          value: 'custom',
+          label: () => t('plugins.video-toggle.menu.mode.submenu.custom'),
+        },
+        {
+          value: 'native',
+          label: () => t('plugins.video-toggle.menu.mode.submenu.native'),
+        },
+        {
+          value: 'disabled',
+          label: () => t('plugins.video-toggle.menu.mode.submenu.disabled'),
+        },
+      ],
+    },
+    {
+      type: 'select',
+      key: 'align',
+      label: () => t('plugins.video-toggle.menu.align.label'),
+      restartNeeded: true,
+      options: [
+        {
+          value: 'left',
+          label: () => t('plugins.video-toggle.menu.align.submenu.left'),
+        },
+        {
+          value: 'middle',
+          label: () => t('plugins.video-toggle.menu.align.submenu.middle'),
+        },
+        {
+          value: 'right',
+          label: () => t('plugins.video-toggle.menu.align.submenu.right'),
+        },
+      ],
+    },
+    {
+      type: 'switch',
+      key: 'forceHide',
+      label: () => t('plugins.video-toggle.menu.force-hide'),
+    },
+  ],
   stylesheets: [buttonSwitcherStyle, forceHideStyle],
   menu: async ({ getConfig, setConfig }): Promise<MenuTemplate> => {
     const config = await getConfig();

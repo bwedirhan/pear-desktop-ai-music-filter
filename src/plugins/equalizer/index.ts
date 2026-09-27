@@ -38,6 +38,9 @@ export default createPlugin({
       key: 'presets',
       label: () => t('plugins.equalizer.menu.presets.label'),
       component: 'equalizer.presets',
+      // The renderer reads the presets once, on start; a toggled preset only
+      // reaches the audio graph after a restart.
+      restartNeeded: true,
     },
   ],
   menu: async ({

@@ -41,6 +41,34 @@ export default createPlugin<
     maxRetries: 5,
     logToConsole: true,
   },
+  settings: [
+    {
+      type: 'slider',
+      key: 'stallTimeoutMs',
+      label: () => t('plugins.playback-recovery.settings.stall-timeout'),
+      description: () =>
+        t('plugins.playback-recovery.settings.stall-timeout-description'),
+      min: 1000,
+      max: 30000,
+      step: 500,
+      unit: 'ms',
+    },
+    {
+      type: 'slider',
+      key: 'maxRetries',
+      label: () => t('plugins.playback-recovery.settings.max-retries'),
+      description: () =>
+        t('plugins.playback-recovery.settings.max-retries-description'),
+      min: 1,
+      max: 20,
+      step: 1,
+    },
+    {
+      type: 'switch',
+      key: 'logToConsole',
+      label: () => t('plugins.playback-recovery.menu.log-to-console'),
+    },
+  ],
   menu: async ({ getConfig, setConfig }) => {
     const config = await getConfig();
 

@@ -1,6 +1,6 @@
 import { StatusDisplayType } from 'discord-api-types/v10';
 
-import { t } from '@/i18n';
+import { APPLICATION_NAME, t } from '@/i18n';
 import { createPlugin } from '@/utils';
 
 import { backend } from './main';
@@ -78,6 +78,14 @@ export default createPlugin({
     },
     {
       type: 'switch',
+      key: 'playOn\u0059\u006f\u0075\u0054\u0075\u0062\u0065\u004d\u0075\u0073\u0069\u0063',
+      label: () =>
+        t('plugins.discord.menu.play-on-application', {
+          applicationName: APPLICATION_NAME,
+        }),
+    },
+    {
+      type: 'switch',
       key: 'hideGitHubButton',
       label: () => t('plugins.discord.settings.hide-github-button'),
     },
@@ -85,6 +93,34 @@ export default createPlugin({
       type: 'switch',
       key: 'hideDurationLeft',
       label: () => t('plugins.discord.settings.hide-duration-left'),
+    },
+    {
+      type: 'select',
+      variant: 'dropdown',
+      key: 'statusDisplayType',
+      label: () => t('plugins.discord.menu.set-status-display-type.label'),
+      options: [
+        {
+          value: StatusDisplayType.Name,
+          label: () =>
+            t(
+              'plugins.discord.menu.set-status-display-type.submenu.application',
+              {
+                applicationName: APPLICATION_NAME,
+              },
+            ),
+        },
+        {
+          value: StatusDisplayType.State,
+          label: () =>
+            t('plugins.discord.menu.set-status-display-type.submenu.artist'),
+        },
+        {
+          value: StatusDisplayType.Details,
+          label: () =>
+            t('plugins.discord.menu.set-status-display-type.submenu.title'),
+        },
+      ],
     },
   ],
   menu: onMenu,

@@ -33,6 +33,19 @@ export default createPlugin<
     lastCaptionsCode: '',
   },
 
+  settings: [
+    {
+      type: 'switch',
+      key: 'autoload',
+      label: () => t('plugins.captions-selector.menu.autoload'),
+    },
+    {
+      type: 'switch',
+      key: 'disableCaptions',
+      label: () => t('plugins.captions-selector.menu.disable-captions'),
+    },
+  ],
+
   async menu({ getConfig, setConfig }) {
     const config = await getConfig();
     return [

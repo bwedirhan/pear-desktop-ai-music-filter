@@ -23,6 +23,64 @@ export default createPlugin<
     secondsBeforeEnd: 10,
     fadeScaling: 'equalPower',
   },
+  settings: [
+    {
+      type: 'slider',
+      key: 'fadeInDuration',
+      label: () => t('plugins.crossfade.settings.fade-in'),
+      min: 0,
+      max: 10000,
+      step: 100,
+      unit: 'ms',
+    },
+    {
+      type: 'slider',
+      key: 'fadeOutDuration',
+      label: () => t('plugins.crossfade.settings.fade-out'),
+      min: 0,
+      max: 10000,
+      step: 100,
+      unit: 'ms',
+    },
+    {
+      type: 'slider',
+      key: 'secondsBeforeEnd',
+      label: () => t('plugins.crossfade.settings.seconds-before-end'),
+      description: () =>
+        t('plugins.crossfade.settings.seconds-before-end-description'),
+      min: 0,
+      max: 30,
+      unit: 's',
+    },
+    {
+      type: 'select',
+      key: 'fadeScaling',
+      label: () => t('plugins.crossfade.settings.fade-scaling'),
+      options: [
+        {
+          value: 'linear',
+          label: () =>
+            t(
+              'plugins.crossfade.prompt.options.multi-input.fade-scaling.linear',
+            ),
+        },
+        {
+          value: 'logarithmic',
+          label: () =>
+            t(
+              'plugins.crossfade.prompt.options.multi-input.fade-scaling.logarithmic',
+            ),
+        },
+        {
+          value: 'equalPower',
+          label: () =>
+            t(
+              'plugins.crossfade.prompt.options.multi-input.fade-scaling.equal-power',
+            ),
+        },
+      ],
+    },
+  ],
   menu,
   backend,
   renderer,

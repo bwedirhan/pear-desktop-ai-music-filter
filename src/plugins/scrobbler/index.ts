@@ -207,6 +207,19 @@ export default createPlugin({
           key: 'alternativeArtist',
           label: () => t('plugins.scrobbler.menu.scrobble-alternative-artist'),
         },
+        {
+          type: 'switch',
+          key: 'useMusicBrainz',
+          label: () => t('plugins.scrobbler.menu.use-musicbrainz'),
+        },
+        {
+          type: 'text',
+          key: 'musicBrainzEmail',
+          label: () => t('plugins.scrobbler.menu.musicbrainz-email'),
+          description: () =>
+            t('plugins.scrobbler.settings.musicbrainz-email-description'),
+          placeholder: () => 'you@example.com',
+        },
       ],
     },
     {
@@ -227,6 +240,11 @@ export default createPlugin({
           key: 'scrobblers.lastfm.secret',
           label: () => t('plugins.scrobbler.prompt.lastfm.api-secret'),
         },
+        {
+          type: 'text',
+          key: 'scrobblers.lastfm.apiRoot',
+          label: () => t('plugins.scrobbler.settings.lastfm-api-root'),
+        },
       ],
     },
     {
@@ -241,6 +259,11 @@ export default createPlugin({
           type: 'text',
           key: 'scrobblers.listenbrainz.token',
           label: () => t('plugins.scrobbler.menu.listenbrainz.token'),
+        },
+        {
+          type: 'text',
+          key: 'scrobblers.listenbrainz.apiRoot',
+          label: () => t('plugins.scrobbler.menu.listenbrainz.api-root'),
         },
       ],
     },

@@ -16,6 +16,13 @@ export default createPlugin({
     enabled: false,
     noPreservesPitch: false,
   } satisfies PlaybackSpeedConfig as PlaybackSpeedConfig,
+  settings: [
+    {
+      type: 'switch',
+      key: 'noPreservesPitch',
+      label: () => t('plugins.playback-speed.menu.no-preserves-pitch'),
+    },
+  ],
   menu: async ({ getConfig, setConfig }) => {
     const config = await getConfig();
     return [

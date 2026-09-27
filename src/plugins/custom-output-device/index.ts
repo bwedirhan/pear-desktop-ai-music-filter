@@ -27,7 +27,6 @@ export default createPlugin({
       variant: 'dropdown',
       key: 'output',
       label: () => t('plugins.custom-output-device.menu.device-selector'),
-      restartNeeded: true,
       options: async () => {
         const devices = await navigator.mediaDevices.enumerateDevices();
         return [

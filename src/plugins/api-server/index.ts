@@ -16,7 +16,6 @@ export default createPlugin({
       type: 'text',
       key: 'hostname',
       label: () => t('plugins.api-server.menu.hostname.label'),
-      restartNeeded: true,
     },
     {
       type: 'number',
@@ -24,7 +23,6 @@ export default createPlugin({
       label: () => t('plugins.api-server.menu.port.label'),
       min: 0,
       max: 65535,
-      restartNeeded: true,
     },
     {
       type: 'select',
@@ -48,8 +46,32 @@ export default createPlugin({
     {
       type: 'switch',
       key: 'useHttps',
-      label: () => t('plugins.api-server.menu.https.label'),
-      restartNeeded: true,
+      label: () =>
+        t('plugins.api-server.menu.https.submenu.enable-https.label'),
+    },
+    {
+      type: 'action',
+      key: 'certPath',
+      label: () => t('plugins.api-server.menu.https.submenu.cert.label'),
+      buttonLabel: () => t('plugins.api-server.settings.choose-file'),
+      onClick: async ({ pickFile, setValue }) => {
+        const file = await pickFile([
+          { name: 'Certificate', extensions: ['crt', 'pem'] },
+        ]);
+        if (file) setValue('certPath', file);
+      },
+    },
+    {
+      type: 'action',
+      key: 'keyPath',
+      label: () => t('plugins.api-server.menu.https.submenu.key.label'),
+      buttonLabel: () => t('plugins.api-server.settings.choose-file'),
+      onClick: async ({ pickFile, setValue }) => {
+        const file = await pickFile([
+          { name: 'Private Key', extensions: ['key', 'pem'] },
+        ]);
+        if (file) setValue('keyPath', file);
+      },
     },
   ],
   menu: onMenu,

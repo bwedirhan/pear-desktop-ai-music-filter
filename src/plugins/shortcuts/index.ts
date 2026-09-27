@@ -41,11 +41,12 @@ export default createPlugin({
           type: 'switch',
           key: 'overrideMediaKeys',
           label: () => t('plugins.shortcuts.menu.override-media-keys'),
+          restartNeeded: true,
         },
       ],
     },
     {
-      title: () => 'Global',
+      title: () => t('plugins.shortcuts.settings.global-keybinds'),
       fields: [
         {
           type: 'text',
@@ -53,6 +54,7 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.previous'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Left',
+          restartNeeded: true,
         },
         {
           type: 'text',
@@ -60,6 +62,7 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.play-pause'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Space',
+          restartNeeded: true,
         },
         {
           type: 'text',
@@ -67,11 +70,12 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.next'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Right',
+          restartNeeded: true,
         },
       ],
     },
     {
-      title: () => 'Local',
+      title: () => t('plugins.shortcuts.settings.local-keybinds'),
       fields: [
         {
           type: 'text',
@@ -79,6 +83,7 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.previous'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Left',
+          restartNeeded: true,
         },
         {
           type: 'text',
@@ -86,6 +91,7 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.play-pause'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Space',
+          restartNeeded: true,
         },
         {
           type: 'text',
@@ -93,6 +99,7 @@ export default createPlugin({
           label: () =>
             t('plugins.shortcuts.prompt.keybind.keybind-options.next'),
           placeholder: () => 'e.g. CmdOrCtrl+Shift+Right',
+          restartNeeded: true,
         },
       ],
     },

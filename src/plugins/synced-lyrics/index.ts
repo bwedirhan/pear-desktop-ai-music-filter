@@ -3,10 +3,74 @@ import { createPlugin } from '@/utils';
 
 import { backend } from './backend';
 import { menu } from './menu';
+import { providerNames } from './providers';
 import { renderer } from './renderer';
 import style from './style.css?inline';
 
-import type { SyncedLyricsPluginConfig } from './types';
+import type {
+  LyricsFontSize,
+  SyncedLyricsPluginConfig,
+  TranslationProviderName,
+  TranslationTargetLanguage,
+} from './types';
+
+const lyricsFontSizeOptions: LyricsFontSize[] = ['small', 'medium', 'large'];
+
+const translateProviderOptions: TranslationProviderName[] = [
+  'openai-compatible',
+  'anthropic',
+  'gemini',
+  'local-cli',
+  'google-translate',
+];
+
+const translateTargetLanguageOptions: TranslationTargetLanguage[] = [
+  'auto',
+  'zh-CN',
+  'zh-TW',
+  'en',
+  'ja',
+  'ko',
+  'fr',
+  'de',
+  'es',
+  'pt-BR',
+  'pt-PT',
+  'it',
+  'nl',
+  'ru',
+  'uk',
+  'pl',
+  'tr',
+  'ar',
+  'he',
+  'fa',
+  'hi',
+  'bn',
+  'ur',
+  'ta',
+  'te',
+  'mr',
+  'id',
+  'ms',
+  'vi',
+  'th',
+  'fil',
+  'sw',
+  'sv',
+  'no',
+  'da',
+  'fi',
+  'cs',
+  'ro',
+  'hu',
+  'el',
+  'bg',
+  'sr',
+  'hr',
+  'sk',
+  'lt',
+];
 
 export default createPlugin<
   typeof backend,
@@ -64,45 +128,346 @@ export default createPlugin<
 
   settings: [
     {
-      type: 'switch',
-      key: 'preciseTiming',
-      label: () => t('plugins.synced-lyrics.settings.precise-timing'),
-    },
-    {
-      type: 'switch',
-      key: 'showLyricsEvenIfInexact',
-      label: () => t('plugins.synced-lyrics.settings.show-inexact'),
-    },
-    {
-      type: 'switch',
-      key: 'showTimeCodes',
-      label: () => t('plugins.synced-lyrics.settings.show-time-codes'),
-    },
-    {
-      type: 'switch',
-      key: 'romanization',
-      label: () => t('plugins.synced-lyrics.settings.romanization'),
-    },
-    {
-      type: 'select',
-      key: 'lineEffect',
-      label: () => t('plugins.synced-lyrics.settings.line-effect'),
-      options: [
+      fields: [
         {
-          value: 'fancy',
-          label: () => t('plugins.synced-lyrics.settings.effect.fancy'),
+          type: 'select',
+          variant: 'dropdown',
+          key: 'preferredProvider',
+          label: () => t('plugins.synced-lyrics.menu.preferred-provider.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.preferred-provider.tooltip'),
+          options: [
+            {
+              value: '',
+              label: () =>
+                t('plugins.synced-lyrics.menu.preferred-provider.none.label'),
+            },
+            ...providerNames.map((provider) => ({
+              value: provider,
+              label: () => provider,
+            })),
+          ],
         },
         {
-          value: 'scale',
-          label: () => t('plugins.synced-lyrics.settings.effect.scale'),
+          type: 'switch',
+          key: 'preciseTiming',
+          label: () => t('plugins.synced-lyrics.settings.precise-timing'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.precise-timing.tooltip'),
         },
         {
-          value: 'offset',
-          label: () => t('plugins.synced-lyrics.settings.effect.offset'),
+          type: 'switch',
+          key: 'showLyricsEvenIfInexact',
+          label: () => t('plugins.synced-lyrics.settings.show-inexact'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.show-lyrics-even-if-inexact.tooltip'),
         },
         {
-          value: 'focus',
-          label: () => t('plugins.synced-lyrics.settings.effect.focus'),
+          type: 'switch',
+          key: 'showTimeCodes',
+          label: () => t('plugins.synced-lyrics.settings.show-time-codes'),
+        },
+        {
+          type: 'switch',
+          key: 'romanization',
+          label: () => t('plugins.synced-lyrics.settings.romanization'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.romanization.tooltip'),
+        },
+        {
+          type: 'select',
+          key: 'lineEffect',
+          label: () => t('plugins.synced-lyrics.settings.line-effect'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.line-effect.tooltip'),
+          options: [
+            {
+              value: 'fancy',
+              label: () => t('plugins.synced-lyrics.settings.effect.fancy'),
+            },
+            {
+              value: 'scale',
+              label: () => t('plugins.synced-lyrics.settings.effect.scale'),
+            },
+            {
+              value: 'offset',
+              label: () => t('plugins.synced-lyrics.settings.effect.offset'),
+            },
+            {
+              value: 'focus',
+              label: () => t('plugins.synced-lyrics.settings.effect.focus'),
+            },
+          ],
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'lyricsFontSize',
+          label: () => t('plugins.synced-lyrics.menu.lyrics-font-size.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.lyrics-font-size.tooltip'),
+          options: lyricsFontSizeOptions.map((size) => ({
+            value: size,
+            label: () =>
+              t(
+                `plugins.synced-lyrics.menu.lyrics-font-size.submenu.${size}.label`,
+              ),
+          })),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'convertChineseCharacter',
+          label: () =>
+            t('plugins.synced-lyrics.menu.convert-chinese-character.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.convert-chinese-character.tooltip'),
+          options: [
+            {
+              value: 'disabled',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.convert-chinese-character.submenu.disabled.label',
+                ),
+            },
+            {
+              value: 'simplifiedToTraditional',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.convert-chinese-character.submenu.simplified-to-traditional.label',
+                ),
+            },
+            {
+              value: 'traditionalToSimplified',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.convert-chinese-character.submenu.traditional-to-simplified.label',
+                ),
+            },
+          ],
+        },
+        {
+          type: 'text',
+          key: 'defaultTextString',
+          label: () =>
+            t('plugins.synced-lyrics.menu.default-text-string.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.default-text-string.tooltip'),
+          placeholder: () => '♪',
+        },
+        {
+          type: 'switch',
+          key: 'useYTMLyricsWithoutProxy',
+          label: () =>
+            t('plugins.synced-lyrics.menu.use-ytm-lyrics-without-proxy.label'),
+          description: () =>
+            t(
+              'plugins.synced-lyrics.menu.use-ytm-lyrics-without-proxy.tooltip',
+            ),
+        },
+        {
+          type: 'switch',
+          key: 'showCustomSearchButton',
+          label: () =>
+            t('plugins.synced-lyrics.menu.show-custom-search-button.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.show-custom-search-button.tooltip'),
+        },
+      ],
+    },
+    {
+      title: () => t('plugins.synced-lyrics.menu.translation.label'),
+      fields: [
+        {
+          type: 'switch',
+          key: 'translation.enabled',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.enabled.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.translation.enabled.tooltip'),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'translation.provider',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.provider.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.translation.provider.tooltip'),
+          options: translateProviderOptions.map((provider) => ({
+            value: provider,
+            label: () =>
+              t(
+                `plugins.synced-lyrics.menu.translation.providers.${provider}.name`,
+              ),
+          })),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'translation.targetLanguage',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.target-language.label'),
+          description: () =>
+            t('plugins.synced-lyrics.menu.translation.target-language.tooltip'),
+          options: translateTargetLanguageOptions.map((language) => ({
+            value: language,
+            label: () =>
+              t(
+                `plugins.synced-lyrics.menu.translation.target-language.options.${language}`,
+              ),
+          })),
+        },
+      ],
+    },
+    {
+      title: () =>
+        t(
+          'plugins.synced-lyrics.menu.translation.providers.openai-compatible.name',
+        ),
+      fields: [
+        {
+          type: 'text',
+          key: 'translation.providers.openai-compatible.baseUrl',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.openai-compatible.base-url',
+            ),
+        },
+        {
+          type: 'text',
+          key: 'translation.providers.openai-compatible.apiKey',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.shared.api-key',
+            ),
+        },
+        {
+          type: 'text',
+          key: 'translation.providers.openai-compatible.model',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.providers.shared.model'),
+        },
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'translation.providers.openai-compatible.apiMode',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.openai-compatible.api-mode',
+            ),
+          options: (['responses', 'chat-completions', 'auto'] as const).map(
+            (apiMode) => ({
+              value: apiMode,
+              label: () => apiMode,
+            }),
+          ),
+        },
+      ],
+    },
+    {
+      title: () =>
+        t('plugins.synced-lyrics.menu.translation.providers.anthropic.name'),
+      fields: [
+        {
+          type: 'text',
+          key: 'translation.providers.anthropic.apiKey',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.shared.api-key',
+            ),
+        },
+        {
+          type: 'text',
+          key: 'translation.providers.anthropic.model',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.providers.shared.model'),
+        },
+      ],
+    },
+    {
+      title: () =>
+        t('plugins.synced-lyrics.menu.translation.providers.gemini.name'),
+      fields: [
+        {
+          type: 'text',
+          key: 'translation.providers.gemini.apiKey',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.shared.api-key',
+            ),
+        },
+        {
+          type: 'text',
+          key: 'translation.providers.gemini.model',
+          label: () =>
+            t('plugins.synced-lyrics.menu.translation.providers.shared.model'),
+        },
+      ],
+    },
+    {
+      title: () =>
+        t('plugins.synced-lyrics.menu.translation.providers.local-cli.name'),
+      fields: [
+        {
+          type: 'select',
+          variant: 'dropdown',
+          key: 'translation.providers.local-cli.engine',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.local-cli.engine',
+            ),
+          options: [
+            {
+              value: 'claude',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.translation.providers.local-cli.engine-claude',
+                ),
+            },
+            {
+              value: 'codex',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.translation.providers.local-cli.engine-codex',
+                ),
+            },
+            {
+              value: 'gemini',
+              label: () =>
+                t(
+                  'plugins.synced-lyrics.menu.translation.providers.local-cli.engine-gemini',
+                ),
+            },
+          ],
+        },
+        {
+          type: 'number',
+          key: 'translation.providers.local-cli.timeoutSeconds',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.local-cli.timeout',
+            ),
+          min: 15,
+          max: 600,
+          step: 1,
+          unit: 's',
+        },
+      ],
+    },
+    {
+      title: () =>
+        t(
+          'plugins.synced-lyrics.menu.translation.providers.google-translate.name',
+        ),
+      fields: [
+        {
+          type: 'text',
+          key: 'translation.providers.google-translate.host',
+          label: () =>
+            t(
+              'plugins.synced-lyrics.menu.translation.providers.google-translate.host',
+            ),
         },
       ],
     },

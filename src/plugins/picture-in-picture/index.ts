@@ -60,6 +60,7 @@ export default createPlugin({
       key: 'hotkey',
       label: () => t('plugins.picture-in-picture.menu.hotkey.label'),
       placeholder: () => 'e.g. P',
+      restartNeeded: true,
     },
   ],
   menu: onMenu,

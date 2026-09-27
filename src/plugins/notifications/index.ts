@@ -67,10 +67,10 @@ export default createPlugin({
     },
     {
       type: 'switch',
-      key: 'trayControls',
+      key: 'hoverControls',
       label: () =>
         t(
-          'plugins.notifications.menu.interactive-settings.submenu.tray-controls',
+          'plugins.notifications.menu.interactive-settings.submenu.hover-controls',
         ),
       platform: Platform.Windows,
     },
