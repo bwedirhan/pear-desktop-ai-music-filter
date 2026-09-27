@@ -39,7 +39,6 @@ export const AboutSection = (props: {
   meta?: AppMeta;
   enabledPlugins?: string[];
 }) => {
-  const meta = () => props.meta;
   const { copied, copy } = useCopyFeedback();
 
   // The same artwork the app registers with the OS: the original logo, or
@@ -47,13 +46,13 @@ export const AboutSection = (props: {
   const logo = () => (store()?.options.useYtmIcons ? YTM_ICON_SRC : ICON_SRC);
 
   const reportIssueUrl = () => {
-    const m = meta();
     const params = new URLSearchParams({ template: 'bug_report.yml' });
-    if (m) {
-      params.set('app-version', m.version);
-      params.set('os', osOptionLabel(m.platform));
-      params.set('os-version', m.osVersion);
-      params.set('cpu-arch', archOptionLabel(m.arch));
+    const meta = props.meta;
+    if (meta) {
+      params.set('app-version', meta.version);
+      params.set('os', osOptionLabel(meta.platform));
+      params.set('os-version', meta.osVersion);
+      params.set('cpu-arch', archOptionLabel(meta.arch));
     }
     const plugins = props.enabledPlugins ?? [];
     if (plugins.length) {
@@ -66,27 +65,27 @@ export const AboutSection = (props: {
   };
 
   const versionRows = () => {
-    const m = meta();
+    const meta = props.meta;
     return [
       {
         label: t('settings-ui.about.version-app'),
-        value: m ? `v${m.version}` : '…',
+        value: meta ? `v${meta.version}` : '…',
       },
       {
         label: t('settings-ui.about.version-electron'),
-        value: m?.versions.electron ?? '…',
+        value: meta?.versions.electron ?? '…',
       },
       {
         label: t('settings-ui.about.version-chromium'),
-        value: m?.versions.chrome ?? '…',
+        value: meta?.versions.chrome ?? '…',
       },
       {
         label: t('settings-ui.about.version-node'),
-        value: m?.versions.node ?? '…',
+        value: meta?.versions.node ?? '…',
       },
       {
         label: t('settings-ui.about.version-platform'),
-        value: m ? `${m.platform} (${m.arch})` : '…',
+        value: meta ? `${meta.platform} (${meta.arch})` : '…',
       },
     ];
   };
@@ -110,18 +109,13 @@ export const AboutSection = (props: {
     },
   ];
 
-  const copyDebug = () => {
-    const m = meta();
-    if (m) copy(buildDebugInfo(m, props.enabledPlugins ?? []));
-  };
-
   return (
     <div class="sui-about">
       <div class="sui-about__header">
         <img alt="" class="sui-about__logo" src={logo()} />
         <div class="sui-about__name">Pear Desktop</div>
-        <Show when={meta()}>
-          <div class="sui-about__version">v{meta()!.version}</div>
+        <Show when={props.meta}>
+          <div class="sui-about__version">v{props.meta!.version}</div>
         </Show>
         <div class="sui-about__tagline">{t('settings-ui.about.tagline')}</div>
       </div>
@@ -169,7 +163,11 @@ export const AboutSection = (props: {
         <div class="sui-actions">
           <button
             class="sui-outlinedbtn"
-            onClick={() => bridge.checkUpdates()}
+            onClick={() => {
+              // Dev builds and auto-updates-off both reject here; the menu's
+              // own entry is hidden in exactly those cases.
+              bridge.checkUpdates().catch(() => {});
+            }}
             type="button"
           >
             {t('settings-ui.about.check-updates')}
@@ -177,7 +175,9 @@ export const AboutSection = (props: {
           <button
             class="sui-outlinedbtn"
             onClick={() => {
-              copyDebug();
+              if (props.meta) {
+                copy(buildDebugInfo(props.meta, props.enabledPlugins ?? []));
+              }
             }}
             type="button"
           >

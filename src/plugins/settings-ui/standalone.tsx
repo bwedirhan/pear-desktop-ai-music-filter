@@ -4,7 +4,13 @@ import { loadI18n, setLanguage } from '@/i18n';
 import { createRendererIpc } from '@/loader/renderer';
 
 import { SettingsModal } from './components/SettingsModal';
-import { listenStorePush, refreshStore, setIpc } from './state';
+import {
+  listenStorePush,
+  listenThemesPush,
+  refreshStore,
+  refreshThemes,
+  setIpc,
+} from './state';
 import style from './styles.css?inline';
 
 export const bootStandaloneSettings = async () => {
@@ -20,7 +26,9 @@ export const bootStandaloneSettings = async () => {
   setIpc(createRendererIpc());
 
   await refreshStore();
+  await refreshThemes();
   listenStorePush();
+  listenThemesPush();
 
   const host = document.createElement('div');
   host.id = 'ytmd-sui-standalone-root';

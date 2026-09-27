@@ -105,6 +105,11 @@
 }
 
 /* ---- sidebar ---- */
+.sui-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .sui-sidebar {
   width: 244px;
   flex-shrink: 0;

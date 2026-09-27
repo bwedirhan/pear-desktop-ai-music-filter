@@ -63,6 +63,10 @@ import {
   themesForRenderer,
 } from '@/themes/main';
 import { setUpTray } from '@/tray';
+import {
+  restartRequirementKey,
+  type RestartRequirement,
+} from '@/types/restart';
 import { LoggerPrefix } from '@/utils';
 import { isTesting } from '@/utils/testing';
 import { showOnCurrentDesktop } from '@/window-utils';
@@ -71,7 +75,6 @@ import packageJson from '../package.json';
 
 import type { RepeatMode } from '@/types/datahost-get-state';
 import type { PluginConfig } from '@/types/plugins';
-import type { RestartRequirement } from '@/types/restart';
 
 // Catch errors and log them
 unhandled({
@@ -312,11 +315,10 @@ const initHook = async (win: BrowserWindow) => {
   const addPendingSettingsRestartRequirement = (
     requirement: RestartRequirement,
   ) => {
-    const key =
-      requirement.type === 'plugin'
-        ? `plugin:${requirement.id}`
-        : `setting:${requirement.label}`;
-    pendingSettingsRestartRequirements.set(key, requirement);
+    pendingSettingsRestartRequirements.set(
+      restartRequirementKey(requirement),
+      requirement,
+    );
   };
 
   ipcMain.handle('ytmd-sui:restart-session-open', (event) => {

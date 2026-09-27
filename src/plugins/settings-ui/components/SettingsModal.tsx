@@ -11,6 +11,10 @@ import {
 import { allPlugins, rendererPlugins } from 'virtual:plugins';
 
 import { t } from '@/i18n';
+import {
+  restartRequirementKey,
+  type RestartRequirement,
+} from '@/types/restart';
 import { toSettingsGroups, type SettingsGroup } from '@/types/settings';
 
 import { AboutSection } from './AboutSection';
@@ -19,23 +23,21 @@ import { PluginCard } from './PluginCard';
 import { SettingsField } from './SettingsField';
 
 import { buildDebugInfo, useCopyFeedback } from '../debug-info';
+import { getByPath } from '../paths';
 import { filterGroupsByPlatform } from '../platform';
 import { buildAppSections } from '../schema/app-settings';
 import {
   bridge,
   flushPendingPluginSliderWrites,
   getAppValue,
-  getByPath,
   getPluginConfig,
   layout,
   patchLayout,
   setAppValue,
-  setPluginValue,
   setPluginSliderValue,
+  setPluginValue,
   store,
 } from '../state';
-
-import type { RestartRequirement } from '@/types/restart';
 
 interface PluginMeta {
   id: string;
@@ -59,11 +61,6 @@ const SIDEBAR_MAX_WIDTH = 420;
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), Math.max(min, max));
 
-const restartRequirementKey = (requirement: RestartRequirement) =>
-  requirement.type === 'plugin'
-    ? `plugin:${requirement.id}`
-    : `setting:${requirement.label}`;
-
 export const SettingsModal = (props: {
   onClose: () => void;
   /** Set while the exit animation plays; the renderer unmounts afterwards. */
@@ -73,13 +70,13 @@ export const SettingsModal = (props: {
   const [active, setActive] = createSignal<string>('general');
   const [query, setQuery] = createSignal('');
   const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set());
-  const debugCopied = useCopyFeedback();
-  let modalEl: HTMLDivElement | undefined;
-  let sidebarEl: HTMLElement | undefined;
   const [restartFlagged, setRestartFlagged] = createSignal(false);
   const [restartRequirements, setRestartRequirements] = createSignal<
     RestartRequirement[]
   >([]);
+  const debugCopied = useCopyFeedback();
+  let modalEl: HTMLDivElement | undefined;
+  let sidebarEl: HTMLElement | undefined;
   let isClosing = false;
   let searchInputRef: HTMLInputElement | undefined;
   let previousFocus: HTMLElement | null = null;
@@ -135,6 +132,10 @@ export const SettingsModal = (props: {
     onCleanup(() => {
       window.removeEventListener('keydown', onKey);
       previousFocus?.focus?.();
+      // The window can also go away without going through close() (the tray
+      // settings window's X, a renderer reload); the main process tracks open
+      // sessions and would otherwise never show its restart dialog again.
+      bridge.restartSessionClose(restartRequirements());
     });
   });
 
@@ -148,6 +149,25 @@ export const SettingsModal = (props: {
     modalEl.style.width = width ? `${width}px` : '';
     modalEl.style.height = height ? `${height}px` : '';
   });
+
+  /**
+   * Runs `onMove` for every pointer event of a drag, on the grip itself: the
+   * capture keeps it reporting once the cursor leaves the window.
+   */
+  const trackDrag = (e: PointerEvent, onMove: (move: PointerEvent) => void) => {
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    grip.setPointerCapture(e.pointerId);
+
+    const stop = () => {
+      grip.removeEventListener('pointermove', onMove);
+      grip.removeEventListener('pointerup', stop);
+      grip.removeEventListener('pointercancel', stop);
+    };
+    grip.addEventListener('pointermove', onMove);
+    grip.addEventListener('pointerup', stop);
+    grip.addEventListener('pointercancel', stop);
+  };
 
   /**
    * Drag the (invisible) bottom-right grip. The modal is centred, so growing it
@@ -177,25 +197,6 @@ export const SettingsModal = (props: {
     });
   };
 
-  /**
-   * Runs `onMove` for every pointer event of a drag, on the grip itself: the
-   * capture keeps it reporting once the cursor leaves the window.
-   */
-  const trackDrag = (e: PointerEvent, onMove: (move: PointerEvent) => void) => {
-    e.preventDefault();
-    const grip = e.currentTarget as HTMLElement;
-    grip.setPointerCapture(e.pointerId);
-
-    const stop = () => {
-      grip.removeEventListener('pointermove', onMove);
-      grip.removeEventListener('pointerup', stop);
-      grip.removeEventListener('pointercancel', stop);
-    };
-    grip.addEventListener('pointermove', onMove);
-    grip.addEventListener('pointerup', stop);
-    grip.addEventListener('pointercancel', stop);
-  };
-
   /** The sidebar is flush with the modal's left edge, so it tracks the cursor 1:1. */
   const startSidebarDrag = (e: PointerEvent) => {
     const startX = e.clientX;
@@ -212,22 +213,46 @@ export const SettingsModal = (props: {
     });
   };
 
-  const enabledPlugins = createMemo(() => {
+  // ---- value plumbing ----
+  const appVal = (key: string) => {
     const snap = store();
-    if (!snap) return [] as PluginMeta[];
+    return snap ? getAppValue(snap, key) : undefined;
+  };
+  const pluginVal = (meta: PluginMeta, key: string) => {
+    const snap = store();
+    if (!snap) return undefined;
+    // Plugin keys are dotted paths (`scrobblers.lastfm.apiKey`).
+    return getByPath(getPluginConfig(snap, meta.id, meta.config), key);
+  };
+  const isPluginEnabled = (meta: PluginMeta) => {
+    const snap = store();
+    const stored = snap
+      ? (snap.plugins as Record<string, { enabled?: boolean }>)[meta.id]
+      : undefined;
+    return stored?.enabled ?? (meta.config.enabled as boolean);
+  };
 
-    return (plugins() ?? []).filter(
-      (p) =>
-        (snap.plugins as Record<string, { enabled?: boolean }>)[p.id]
-          ?.enabled ?? (p.config.enabled as boolean),
+  const enabledPlugins = createMemo(() =>
+    (plugins() ?? []).filter(isPluginEnabled),
+  );
+
+  /**
+   * Only the changed field decides this. A plugin's own `restartNeeded` is
+   * about enabling or disabling it (see onToggle), not about its settings:
+   * crossfade needs a restart to turn on, but not to change a fade duration.
+   * Custom components may write below the field's own key (`presets.classical`).
+   */
+  const fieldNeedsRestart = (groups: SettingsGroup[], key: string): boolean =>
+    groups.some((group) =>
+      group.fields.some(
+        (field) =>
+          field.restartNeeded &&
+          (key === field.key || key.startsWith(`${field.key}.`)),
+      ),
     );
-  });
 
-  const flagIfRestart = (
-    requirement: RestartRequirement,
-    needsRestart?: boolean,
-  ) => {
-    if (!needsRestart) return;
+  const flagIfRestart = (requirement: RestartRequirement, needed?: boolean) => {
+    if (!needed) return;
 
     setRestartFlagged(true);
     setRestartRequirements((current) =>
@@ -244,12 +269,11 @@ export const SettingsModal = (props: {
     if (isClosing) return;
     isClosing = true;
 
-    const requirements = restartRequirements();
     // Flush debounced slider writes before the window closes so recent
     // changes aren't lost.
     await flushPendingPluginSliderWrites();
     props.onClose();
-    bridge.restartSessionClose(requirements);
+    bridge.restartSessionClose(restartRequirements());
   };
 
   const closeNow = async () => {
@@ -257,98 +281,43 @@ export const SettingsModal = (props: {
     bridge.restart();
   };
 
-  // ---- app-option value plumbing ----
-  const appVal = (key: string) => {
-    const snap = store();
-    return snap ? getAppValue(snap, key) : undefined;
-  };
-  const appSet = (
-    key: string,
-    value: unknown,
-    label: string,
-    needsRestart?: boolean,
-  ) => {
-    setAppValue(key, value);
-    flagIfRestart({ type: 'setting', label }, needsRestart);
-  };
-
-  // ---- plugin value plumbing ----
-  const pluginVal = (meta: PluginMeta, key: string) => {
-    const snap = store();
-    if (!snap) return undefined;
-    return getByPath(getPluginConfig(snap, meta.id, meta.config), key);
-  };
-  const pluginEnabled = (meta: PluginMeta) => {
-    const snap = store();
-    const stored = snap
-      ? (snap.plugins as Record<string, { enabled?: boolean }>)[meta.id]
-      : undefined;
-    return stored?.enabled ?? (meta.config.enabled as boolean);
-  };
-  const togglePlugin = (meta: PluginMeta, value: boolean) => {
-    bridge.pluginToggle(meta.id, value);
-    flagIfRestart({ type: 'plugin', id: meta.id }, meta.restartNeeded);
-  };
-
   const sections = () => appSections() ?? [];
   const currentSection = () => sections().find((s) => s.id === active());
 
   const isSearching = () => query().trim().length > 0;
 
-  const headerTitle = () => {
-    if (isSearching()) return t('settings-ui.search-results');
-    return currentSection()?.label() ?? '';
-  };
+  const search = () => query().trim().toLowerCase();
 
-  // ---- search result computation ----
-  const searchAppGroups = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return [] as { title: string; group: SettingsGroup }[];
+  /** Match a field by its own text, keeping only the groups that still have one. */
+  const matchingGroups = (groups: SettingsGroup[]) =>
+    groups
+      .map((group) => ({
+        ...group,
+        fields: group.fields.filter(
+          (field) =>
+            (field.visible?.() ?? true) &&
+            matches(search(), field.label(), field.description?.()),
+        ),
+      }))
+      .filter((group) => group.fields.length > 0);
 
-    const out: { title: string; group: SettingsGroup }[] = [];
-    for (const section of sections()) {
-      for (const group of section.groups) {
-        const fields = group.fields.filter((f) =>
-          matches(q, f.label(), f.description?.()),
-        );
-        if (fields.length)
-          out.push({
-            title: `${section.label()} · ${group.title?.() ?? ''}`,
-            group: { fields },
-          });
-      }
-    }
-    return out;
-  });
+  const appMatches = createMemo(() =>
+    sections().flatMap((section) =>
+      matchingGroups(section.groups).map((group) => ({
+        title: `${section.label()} · ${group.title?.() ?? ''}`,
+        group,
+      })),
+    ),
+  );
 
-  const searchPlugins = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return [] as { meta: PluginMeta; groups: SettingsGroup[] }[];
-
-    const out: { meta: PluginMeta; groups: SettingsGroup[] }[] = [];
-    for (const meta of plugins() ?? []) {
-      if (matches(q, meta.name, meta.description)) {
-        out.push({ meta, groups: meta.groups });
-        continue;
-      }
-
-      const groups = meta.groups
-        .map((g) => ({
-          ...g,
-          fields: g.fields.filter((f) =>
-            matches(q, f.label(), f.description?.()),
-          ),
-        }))
-        .filter((g) => g.fields.length);
-      if (groups.length) out.push({ meta, groups });
-    }
-    return out;
-  });
-
-  const searchEmpty = () =>
-    isSearching() &&
-    searchAppGroups().length === 0 &&
-    searchPlugins().length === 0;
+  const pluginMatches = createMemo(() =>
+    (plugins() ?? []).flatMap((meta) => {
+      const groups = matches(search(), meta.name, meta.description)
+        ? meta.groups
+        : matchingGroups(meta.groups);
+      return groups.length ? [{ meta, groups }] : [];
+    }),
+  );
 
   const AppGroupView = (p: { title?: string; group: SettingsGroup }) => (
     <div class="sui-group">
@@ -359,19 +328,16 @@ export const SettingsModal = (props: {
         <For each={p.group.fields.filter((field) => field.visible?.() ?? true)}>
           {(field) => (
             <SettingsField
-              accessors={{
-                getValue: appVal,
-                setValue: (key, v) => {
-                  setAppValue(key, v);
-                },
-                setSliderValue: (key, v) => {
-                  setAppValue(key, v);
-                },
-              }}
+              accessors={{ getValue: appVal, setValue: setAppValue }}
               field={field}
-              onChange={(v) =>
-                appSet(field.key, v, field.label(), field.restartNeeded)
-              }
+              onChange={(value) => {
+                setAppValue(field.key, value);
+                // The banner only needs the requirement, not the write's result.
+                flagIfRestart(
+                  { type: 'setting', label: field.label() },
+                  field.restartNeeded,
+                );
+              }}
               resolveComponent={resolveComponent}
               value={appVal(field.key)}
             />
@@ -381,23 +347,10 @@ export const SettingsModal = (props: {
     </div>
   );
 
-  /**
-   * Only the changed field decides this. A plugin's own `restartNeeded` is
-   * about enabling or disabling it (see togglePlugin), not about its settings:
-   * crossfade needs a restart to turn on, but not to change a fade duration.
-   */
-  const fieldNeedsRestart = (
-    p: { groups: SettingsGroup[] },
-    key: string,
-  ): boolean =>
-    p.groups.some((group) =>
-      group.fields.some((field) => field.key === key && field.restartNeeded),
-    );
-
   const PluginCardView = (p: { meta: PluginMeta; groups: SettingsGroup[] }) => (
     <PluginCard
       description={p.meta.description}
-      enabled={pluginEnabled(p.meta)}
+      enabled={isPluginEnabled(p.meta)}
       expanded={expanded().has(p.meta.id)}
       getValue={(key) => pluginVal(p.meta, key)}
       groups={p.groups}
@@ -411,21 +364,24 @@ export const SettingsModal = (props: {
           return next;
         })
       }
-      onToggle={(v) => togglePlugin(p.meta, v)}
+      onToggle={(enabled) => {
+        bridge.pluginToggle(p.meta.id, enabled);
+        flagIfRestart({ type: 'plugin', id: p.meta.id }, p.meta.restartNeeded);
+      }}
       resolveComponent={resolveComponent}
       restartNeeded={p.meta.restartNeeded}
-      setSliderValue={(key, v) => {
-        setPluginSliderValue(p.meta.id, key, v);
+      setSliderValue={(key, value) => {
+        setPluginSliderValue(p.meta.id, key, value);
         flagIfRestart(
           { type: 'plugin', id: p.meta.id },
-          fieldNeedsRestart(p, key),
+          fieldNeedsRestart(p.groups, key),
         );
       }}
-      setValue={(key, v) => {
-        setPluginValue(p.meta.id, key, v);
+      setValue={(key, value) => {
+        setPluginValue(p.meta.id, key, value);
         flagIfRestart(
           { type: 'plugin', id: p.meta.id },
-          fieldNeedsRestart(p, key),
+          fieldNeedsRestart(p.groups, key),
         );
       }}
     />
@@ -464,7 +420,7 @@ export const SettingsModal = (props: {
           </div>
 
           <div class="sui-search">
-            <Icon name="search" size={20} />
+            <Icon name="search" />
             <input
               onInput={(e) => setQuery(e.currentTarget.value)}
               placeholder={t('settings-ui.search-placeholder')}
@@ -491,7 +447,7 @@ export const SettingsModal = (props: {
                   }}
                   type="button"
                 >
-                  <Icon name={section.icon} size={20} />
+                  <Icon name={section.icon} />
                   <span>{section.label()}</span>
                   <Show when={section.id === 'plugins'}>
                     <span class="sui-nav__count">
@@ -507,11 +463,11 @@ export const SettingsModal = (props: {
             <button
               class="sui-sidebar__version"
               onClick={() => {
-                const m = appMeta();
-                if (m) {
+                const meta = appMeta();
+                if (meta) {
                   debugCopied.copy(
                     buildDebugInfo(
-                      m,
+                      meta,
                       enabledPlugins().map((plugin) => plugin.name),
                     ),
                   );
@@ -540,8 +496,11 @@ export const SettingsModal = (props: {
         <section class="sui-main">
           <header class="sui-header">
             <div class="sui-header__text">
-              <div class="sui-header__title">{headerTitle()}</div>
-              {/* Only the live search line; sections dont get a subtitle. */}
+              <div class="sui-header__title">
+                {isSearching()
+                  ? t('settings-ui.search-results')
+                  : (currentSection()?.label() ?? '')}
+              </div>
               <Show when={isSearching()}>
                 <div class="sui-header__sub">
                   {t('settings-ui.search-matching', {
@@ -568,7 +527,7 @@ export const SettingsModal = (props: {
               classList={{ 'sui-restart--open': restartFlagged() }}
               inert={!restartFlagged()}
             >
-              <Icon name="schedule" size={20} />
+              <Icon name="schedule" />
               <span class="sui-restart__text">
                 {t('settings-ui.restart-banner')}
               </span>
@@ -587,17 +546,21 @@ export const SettingsModal = (props: {
             <Show fallback={<div class="sui-empty">…</div>} when={store()}>
               {/* search mode */}
               <Show when={isSearching()}>
-                <Show when={searchEmpty()}>
+                <Show
+                  when={
+                    appMatches().length === 0 && pluginMatches().length === 0
+                  }
+                >
                   <div class="sui-empty">
                     {t('settings-ui.no-match', { query: query().trim() })}
                   </div>
                 </Show>
-                <For each={searchAppGroups()}>
+                <For each={appMatches()}>
                   {(block) => (
                     <AppGroupView group={block.group} title={block.title} />
                   )}
                 </For>
-                <For each={searchPlugins()}>
+                <For each={pluginMatches()}>
                   {(block) => (
                     <PluginCardView groups={block.groups} meta={block.meta} />
                   )}

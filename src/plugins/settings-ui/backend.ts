@@ -88,12 +88,12 @@ const describeGpu = (info: GpuInfo) => {
   };
 };
 
+/** Every channel the modal calls, so `stop` can unregister them all. */
 const CHANNELS = [
   'ytmd-sui:load-store',
   'ytmd-sui:option-set',
   'ytmd-sui:plugin-toggle',
   'ytmd-sui:pick-path',
-  'ytmd-sui:pick-paths',
   'ytmd-sui:config-edit',
   'ytmd-sui:toggle-devtools',
   'ytmd-sui:restart',
@@ -107,23 +107,40 @@ const CHANNELS = [
   'ytmd-sui:open-themes-folder',
   'ytmd-sui:language-from-youtube',
   'ytmd-sui:language-to-youtube',
-];
+] as const;
 
 export const backend = createBackend<
-  { unwatch: (() => void) | undefined },
+  { unwatch?: () => void },
   SettingsUIConfig
 >({
-  unwatch: undefined as (() => void) | undefined,
-
   start(ctx) {
     const { ipc, window } = ctx;
+    const [
+      LOAD_STORE,
+      OPTION_SET,
+      PLUGIN_TOGGLE,
+      PICK_PATH,
+      CONFIG_EDIT,
+      TOGGLE_DEVTOOLS,
+      RESTART,
+      APP_META,
+      OPEN_EXTERNAL,
+      CHECK_UPDATES,
+      THEMES,
+      THEME_COLOR_SET,
+      THEME_COLORS_RESET,
+      IMPORT_THEME_CSS,
+      OPEN_THEMES_FOLDER,
+      LANGUAGE_FROM_YOUTUBE,
+      LANGUAGE_TO_YOUTUBE,
+    ] = CHANNELS;
 
-    ipc.handle('ytmd-sui:load-store', () => config.getStore());
+    ipc.handle(LOAD_STORE, () => config.getStore());
 
     // Returns false when the write was refused (declining a theme's script),
     // so the caller can re-read the store instead of keeping its optimistic value.
     ipc.handle(
-      'ytmd-sui:option-set',
+      OPTION_SET,
       async (key: string, value: unknown): Promise<boolean> => {
         if (typeof key !== 'string' || !key) return false;
 
@@ -134,65 +151,47 @@ export const backend = createBackend<
           return true;
         }
 
-        config.set(key, value);
+        // setMenuOption, not set: the native menu offers these same options and
+        // honours `restartOnConfigChanges`, so the two paths must not diverge.
+        config.setMenuOption(key, value);
         applyOptionEffects(key, value, window);
         return true;
       },
     );
 
-    ipc.handle('ytmd-sui:plugin-toggle', (id: string, enabled: boolean) => {
+    ipc.handle(PLUGIN_TOGGLE, (id: string, enabled: boolean) => {
       if (typeof id !== 'string' || !id || typeof enabled !== 'boolean') return;
       if (enabled) config.plugins.enable(id);
       else config.plugins.disable(id);
     });
 
     ipc.handle(
-      'ytmd-sui:pick-path',
+      PICK_PATH,
       async (options: OpenDialogOptions): Promise<string | undefined> => {
         const result = await dialog.showOpenDialog(window, options);
         return result.canceled ? undefined : result.filePaths[0];
       },
     );
 
-    ipc.handle(
-      'ytmd-sui:pick-paths',
-      async (options: OpenDialogOptions): Promise<string[]> => {
-        const result = await dialog.showOpenDialog(window, options);
-        return result.canceled ? [] : result.filePaths;
-      },
-    );
-
-    ipc.handle('ytmd-sui:config-edit', () => config.edit());
-    ipc.handle('ytmd-sui:toggle-devtools', () =>
-      window.webContents.toggleDevTools(),
-    );
-    ipc.handle('ytmd-sui:restart', () => restart());
-    ipc.handle('ytmd-sui:app-meta', async () => {
+    ipc.handle(CONFIG_EDIT, () => config.edit());
+    ipc.handle(TOGGLE_DEVTOOLS, () => window.webContents.toggleDevTools());
+    ipc.handle(RESTART, () => restart());
+    ipc.handle(APP_META, async () => {
       const metrics = app.getAppMetrics();
-      const workingSet = (of: string[]) =>
+      const workingSet = (type: string) =>
         metrics
-          .filter((metric) => of.includes(metric.type))
+          .filter((metric) => metric.type === type)
           .reduce((total, metric) => total + metric.memory.workingSetSize, 0);
 
       // Kilobytes, as Electron reports them. The Browser entry is the app's own
-      // node process; whatever is left after the known helpers is the chromium
-      // renderers, whatever Electron happens to call them.
+      // node process, and whatever is left is the chromium renderers, whatever
+      // Electron happens to call them.
       const main =
-        workingSet(['Browser']) || Math.round(process.memoryUsage().rss / 1024);
-      const gpuMemory = workingSet(['GPU']);
-      const other = workingSet([
-        'Utility',
-        'Zygote',
-        'Sandbox helper',
-        'Pepper Plugin',
-        'Pepper Plugin Broker',
-        'Unknown',
-      ]);
-      const total = metrics.reduce(
-        (sum, metric) => sum + metric.memory.workingSetSize,
-        0,
-      );
-      const renderers = Math.max(0, total - main - gpuMemory - other);
+        workingSet('Browser') || Math.round(process.memoryUsage().rss / 1024);
+      const known = new Set(['Browser', 'GPU']);
+      const renderers = metrics
+        .filter((metric) => !known.has(metric.type))
+        .reduce((total, metric) => total + metric.memory.workingSetSize, 0);
 
       const cpus = os.cpus();
 
@@ -222,11 +221,11 @@ export const backend = createBackend<
           ...describeGpu(gpu),
           features: { ...app.getGPUFeatureStatus() },
         },
-        memory: { main, renderers, gpu: gpuMemory, other },
+        memory: { main, renderers, gpu: workingSet('GPU') },
       };
     });
 
-    ipc.handle('ytmd-sui:open-external', async (url: string) => {
+    ipc.handle(OPEN_EXTERNAL, async (url: string) => {
       try {
         const { protocol } = new URL(url);
         if (protocol === 'https:' || protocol === 'http:') {
@@ -235,20 +234,20 @@ export const backend = createBackend<
       } catch {}
     });
 
-    ipc.handle('ytmd-sui:check-updates', () =>
+    ipc.handle(CHECK_UPDATES, () =>
       electronUpdater.autoUpdater.checkForUpdatesAndNotify(),
     );
 
     // Themes: the same state the renderer applies, plus the edits the native
     // menu's theme submenu offers.
-    ipc.handle('ytmd-sui:themes', () => ({
+    ipc.handle(THEMES, () => ({
       themes: themesForRenderer(),
       selected: config.get('options.theme'),
       overrides: config.getThemeOverrides(),
     }));
 
     ipc.handle(
-      'ytmd-sui:theme-color-set',
+      THEME_COLOR_SET,
       (themeId: string, key: string, value: string) => {
         if (!themeId || !key || typeof value !== 'string') return;
         setThemePaletteValue(themeId, key, value);
@@ -256,13 +255,13 @@ export const backend = createBackend<
       },
     );
 
-    ipc.handle('ytmd-sui:theme-colors-reset', (themeId: string) => {
+    ipc.handle(THEME_COLORS_RESET, (themeId: string) => {
       if (!themeId) return;
       resetThemePalette(themeId);
       notifyThemesChanged(window);
     });
 
-    ipc.handle('ytmd-sui:import-theme-css', async (paths: string[]) => {
+    ipc.handle(IMPORT_THEME_CSS, async (paths: string[]) => {
       const id = createThemeFromCssFiles(Array.isArray(paths) ? paths : []);
       if (!id) return;
 
@@ -275,10 +274,10 @@ export const backend = createBackend<
       await refreshMenu(window);
     });
 
-    ipc.handle('ytmd-sui:open-themes-folder', () => openThemesFolder());
+    ipc.handle(OPEN_THEMES_FOLDER, () => openThemesFolder());
 
     // The menu's Language > Sync entries, so the modal can offer them too.
-    ipc.handle('ytmd-sui:language-from-youtube', async () => {
+    ipc.handle(LANGUAGE_FROM_YOUTUBE, async () => {
       const language = await youtubeLanguage(window);
 
       if (!language) {
@@ -295,7 +294,7 @@ export const backend = createBackend<
       return language;
     });
 
-    ipc.handle('ytmd-sui:language-to-youtube', () =>
+    ipc.handle(LANGUAGE_TO_YOUTUBE, () =>
       setYouTubeLanguage(window, config.get('options.language') ?? 'en'),
     );
 

@@ -13,6 +13,8 @@ import {
   refreshStore,
   refreshThemes,
   setIpc,
+  unlistenStorePush,
+  unlistenThemesPush,
 } from './state';
 
 const [open, setOpen] = createSignal(false);
@@ -36,10 +38,11 @@ type GuideEntryRendererElement = HTMLElement & {
 
 let modalHost: HTMLElement | undefined;
 let modalDispose: (() => void) | undefined;
+let started = false;
 
 const injectButton = (guide: HTMLElement) => {
   const items = guide.querySelector(ITEMS_SELECTOR);
-  if (!items) return;
+  if (!items || !started) return;
 
   const host = document.createElement(
     'ytmusic-guide-entry-renderer',
@@ -83,6 +86,11 @@ const mountModal = () => {
 };
 
 const teardownUi = () => {
+  started = false;
+
+  unlistenStorePush();
+  unlistenThemesPush();
+
   modalDispose?.();
   modalDispose = undefined;
   modalHost?.remove();
@@ -100,6 +108,7 @@ export const renderer = createRenderer({
   components: { themePalette: ThemePaletteField },
 
   async start(ctx) {
+    started = true;
     setIpc(ctx.ipc);
     await refreshStore();
     await refreshThemes();
@@ -109,7 +118,9 @@ export const renderer = createRenderer({
     mountModal();
 
     for (const selector of GUIDE_SELECTORS) {
-      waitForElement<HTMLElement>(selector).then(injectButton);
+      // Only one of the two guides is on the page, so the other one's wait
+      // always ends in a timeout; `injectButton` also drops a late resolve.
+      waitForElement<HTMLElement>(selector).then(injectButton, () => {});
     }
   },
 

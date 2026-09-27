@@ -14,22 +14,36 @@ const loadedPluginMap: Record<
 > = {};
 
 /** The renderer-side IPC bridge, shared with the standalone settings window. */
-export const createRendererIpc = (): RendererContext<PluginConfig>['ipc'] => ({
-  send: (event: string, ...args: unknown[]) => {
-    window.ipcRenderer.send(event, ...args);
-  },
-  invoke: (event: string, ...args: unknown[]) =>
-    window.ipcRenderer.invoke(event, ...args),
-  on: (event: string, listener: CallableFunction) => {
-    window.ipcRenderer.on(event, (_, ...args: unknown[]) => {
-      // oxlint-disable-next-line typescript/no-unsafe-call
-      listener(...args);
-    });
-  },
-  removeAllListeners: (event: string) => {
-    window.ipcRenderer.removeAllListeners(event);
-  },
-});
+export const createRendererIpc = (): RendererContext<PluginConfig>['ipc'] => {
+  // The preload listener receives Electron's event argument; `off` has to be
+  // given the very function `on` registered, so keep them here.
+  const listeners = new Map<CallableFunction, (...args: unknown[]) => void>();
+
+  return {
+    send: (event: string, ...args: unknown[]) => {
+      window.ipcRenderer.send(event, ...args);
+    },
+    invoke: (event: string, ...args: unknown[]) =>
+      window.ipcRenderer.invoke(event, ...args),
+    on: (event: string, listener: CallableFunction) => {
+      const wrapped = (_: unknown, ...args: unknown[]) => {
+        // oxlint-disable-next-line typescript/no-unsafe-call
+        listener(...args);
+      };
+      listeners.set(listener, wrapped);
+      window.ipcRenderer.on(event, wrapped);
+    },
+    off: (event: string, listener: CallableFunction) => {
+      const wrapped = listeners.get(listener);
+      if (!wrapped) return;
+      listeners.delete(listener);
+      window.ipcRenderer.off(event, wrapped);
+    },
+    removeAllListeners: (event: string) => {
+      window.ipcRenderer.removeAllListeners(event);
+    },
+  };
+};
 
 export const createContext = <Config extends PluginConfig>(
   id: string,

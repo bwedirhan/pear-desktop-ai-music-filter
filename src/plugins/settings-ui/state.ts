@@ -1,6 +1,8 @@
 import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 
+import { getByPath, nestPartial, setByPath } from './paths';
+
 import type { defaultConfig } from '@/config/defaults';
 import type { ThemePalette, ThemeState } from '@/themes/types';
 import type { RendererContext } from '@/types/contexts';
@@ -39,7 +41,6 @@ export interface AppMeta {
     main: number;
     renderers: number;
     gpu: number;
-    other: number;
   };
 }
 
@@ -69,8 +70,6 @@ export const bridge = {
     ipc!.invoke('ytmd-sui:restart-session-close', changes),
   pickPath: (options: object) =>
     ipc!.invoke('ytmd-sui:pick-path', options) as Promise<string | undefined>,
-  pickPaths: (options: object) =>
-    ipc!.invoke('ytmd-sui:pick-paths', options) as Promise<string[]>,
   configEdit: () => ipc!.invoke('ytmd-sui:config-edit'),
   toggleDevTools: () => ipc!.invoke('ytmd-sui:toggle-devtools'),
   restart: () => ipc!.invoke('ytmd-sui:restart'),
@@ -97,10 +96,14 @@ export const refreshStore = async () => {
   setStore(await bridge.loadStore());
 };
 
+const onStorePush = (next: StoreShape) => setStore(next);
+
 export const listenStorePush = () => {
-  ipc!.on('ytmd-sui:store-changed', (next: StoreShape) => {
-    setStore(next);
-  });
+  ipc!.on('ytmd-sui:store-changed', onStorePush);
+};
+
+export const unlistenStorePush = () => {
+  ipc?.off('ytmd-sui:store-changed', onStorePush);
 };
 
 // ---- theme list (loaded at start, refreshed when the backend says so) ----
@@ -114,10 +117,16 @@ export const refreshThemes = async () => {
   }
 };
 
+const onThemesPush = () => {
+  refreshThemes();
+};
+
 export const listenThemesPush = () => {
-  ipc!.on('peard:themes-changed', () => {
-    refreshThemes();
-  });
+  ipc!.on('peard:themes-changed', onThemesPush);
+};
+
+export const unlistenThemesPush = () => {
+  ipc?.off('peard:themes-changed', onThemesPush);
 };
 
 /** Palette variables of the selected theme; empty when it has none. */
@@ -142,45 +151,12 @@ export const patchLayout = (patch: SettingsLayout) =>
 
 // ---- value helpers ----
 
-export const getByPath = (obj: unknown, path: string): unknown =>
-  path
-    .split('.')
-    .reduce<unknown>(
-      (acc, key) =>
-        acc && typeof acc === 'object'
-          ? (acc as Record<string, unknown>)[key]
-          : undefined,
-      obj,
-    );
-
-/** Writes `value` at a dotted path, creating the intermediate objects. */
-const setByPath = <T extends object>(
-  root: T,
-  path: string,
-  value: unknown,
-): T => {
-  const keys = path.split('.');
-  let node = root as Record<string, unknown>;
-
-  for (const key of keys.slice(0, -1)) {
-    if (typeof node[key] !== 'object' || node[key] === null) node[key] = {};
-    node = node[key] as Record<string, unknown>;
-  }
-
-  node[keys[keys.length - 1]] = value;
-  return root;
-};
-
 /** Optimistically patch a dotted path in the local store signal. */
 export const patchLocal = (path: string, value: unknown) => {
   const current = store();
   if (!current) return;
   setStore(setByPath(structuredClone(current), path, value));
 };
-
-/** Build a nested partial object from a dotted key + value. */
-export const nestPartial = (path: string, value: unknown): object =>
-  setByPath({}, path, value);
 
 // Arrays are replaced, matching how the backend merges a plugin's stored
 // config over its defaults.
@@ -204,8 +180,16 @@ export const setAppValue = async (key: string, value: unknown) => {
     const appVisible = value !== 'hide';
     patchLocal('options.tray', tray);
     patchLocal('options.appVisible', appVisible);
-    await bridge.optionSet('options.tray', tray);
-    await bridge.optionSet('options.appVisible', appVisible);
+    if (
+      (
+        await Promise.all([
+          bridge.optionSet('options.tray', tray),
+          bridge.optionSet('options.appVisible', appVisible),
+        ])
+      ).includes(false)
+    ) {
+      await refreshStore();
+    }
     return;
   }
 
@@ -225,18 +209,22 @@ export const getPluginConfig = (
   return deepmerge(defaults, stored ?? {}) as Record<string, unknown>;
 };
 
-const pendingPluginWrites = new Map<
-  string,
-  { timeout: ReturnType<typeof setTimeout>; write: () => Promise<unknown> }
->();
-const PLUGIN_SLIDER_DEBOUNCE_MS = 200;
-
 export const setPluginValue = (id: string, key: string, value: unknown) => {
   patchLocal(`plugins.${id}.${key}`, value);
   bridge.pluginSet(id, nestPartial(key, value));
 };
 
-/** Update a slider immediately, then persist its final value after dragging. */
+/**
+ * Slider drags fire on every pixel, and each write goes through IPC to disk, so
+ * one write per burst is enough. The last value of the burst wins; a flush
+ * (closing the modal, restarting) writes whatever is still pending.
+ */
+const PLUGIN_SLIDER_DEBOUNCE_MS = 200;
+const pendingPluginWrites = new Map<
+  string,
+  { timeout: ReturnType<typeof setTimeout>; write: () => Promise<unknown> }
+>();
+
 export const setPluginSliderValue = (
   id: string,
   key: string,
@@ -245,11 +233,9 @@ export const setPluginSliderValue = (
   patchLocal(`plugins.${id}.${key}`, value);
 
   const writeKey = `${id}:${key}`;
-  const pending = pendingPluginWrites.get(writeKey);
-  if (pending) clearTimeout(pending.timeout);
+  clearTimeout(pendingPluginWrites.get(writeKey)?.timeout);
 
   const write = () => bridge.pluginSet(id, nestPartial(key, value));
-
   pendingPluginWrites.set(writeKey, {
     timeout: setTimeout(() => {
       pendingPluginWrites.delete(writeKey);
@@ -259,13 +245,13 @@ export const setPluginSliderValue = (
   });
 };
 
-/** Persist slider values that are still waiting for their debounce timer. */
+/** Persist the slider values still waiting for their debounce timer. */
 export const flushPendingPluginSliderWrites = async () => {
   const pending = [...pendingPluginWrites.values()];
   pendingPluginWrites.clear();
 
-  for (const item of pending) clearTimeout(item.timeout);
-  await Promise.all(pending.map((item) => item.write()));
+  for (const { timeout } of pending) clearTimeout(timeout);
+  await Promise.all(pending.map(({ write }) => write()));
 };
 
 // ---- native dialog helpers (for `action` fields) ----
@@ -277,8 +263,3 @@ export const pickFile = (
   filters?: { name: string; extensions: string[] }[],
 ): Promise<string | undefined> =>
   bridge.pickPath({ properties: ['openFile'], filters });
-
-export const pickFiles = (
-  filters?: { name: string; extensions: string[] }[],
-): Promise<string[]> =>
-  bridge.pickPaths({ properties: ['openFile', 'multiSelections'], filters });

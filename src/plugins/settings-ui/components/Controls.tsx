@@ -1,5 +1,7 @@
 import { For, onCleanup, Show } from 'solid-js';
 
+import { t } from '@/i18n';
+
 import type { SettingOption } from '@/types/settings';
 
 type OptionValue = string | number;
@@ -173,7 +175,7 @@ export const NumberStepper = (props: {
   return (
     <div class="sui-stepper">
       <button
-        aria-label="decrement"
+        aria-label={t('settings-ui.stepper-decrement')}
         class="sui-stepper__btn"
         // Held pointers step on pointerdown; that click is then detail 1 and is
         // ignored, leaving click to keyboard activation only.
@@ -201,7 +203,7 @@ export const NumberStepper = (props: {
         <span class="sui-stepper__unit">{props.unit}</span>
       </Show>
       <button
-        aria-label="increment"
+        aria-label={t('settings-ui.stepper-increment')}
         class="sui-stepper__btn"
         onClick={(e) => {
           if (e.detail === 0) set(props.value + step());

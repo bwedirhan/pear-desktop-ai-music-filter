@@ -4,31 +4,23 @@ import { t } from '@/i18n';
 import { startingPages } from '@/providers/extracted-data';
 import { Platform } from '@/types/plugins';
 
-import { bridge, pickFiles, themePalette } from '../state';
+import { bridge, themePalette } from '../state';
 
 import type {
   ActionField,
   SelectField,
+  SettingFieldBase,
   SettingOption,
   SettingsGroup,
   SwitchField,
   TextField,
 } from '@/types/settings';
 
-export type AppSectionId =
-  | 'general'
-  | 'appearance'
-  | 'window'
-  | 'advanced'
-  | 'plugins'
-  | 'about';
-
-export interface AppSection {
-  id: AppSectionId;
+interface AppSection {
+  id: 'general' | 'appearance' | 'window' | 'advanced' | 'plugins' | 'about';
   /** Icon id resolved to an inline SVG in the renderer. */
   icon: string;
   label: () => string;
-  sub: () => string;
   groups: SettingsGroup[];
 }
 
@@ -38,15 +30,18 @@ const menuLabel = (path: string) => () =>
 
 const DESKTOP = Platform.Windows | Platform.macOS;
 
-interface FieldExtras {
-  description?: () => string;
-  restartNeeded?: boolean;
-  platform?: Platform;
-  visible?: () => boolean;
-  hideLabel?: boolean;
-  refreshable?: boolean;
-  languageSync?: boolean;
-}
+/**
+ * What a helper's `extras` argument accepts: the shared field properties plus
+ * the concrete type's own extras, so `refreshable`, `variant` and the rest are
+ * named once instead of redeclared per helper.
+ */
+type FieldExtras = Omit<SettingFieldBase, 'key' | 'label'>;
+type TextExtras = FieldExtras &
+  Omit<TextField, keyof SettingFieldBase | 'type'>;
+type SelectExtras = FieldExtras &
+  Omit<SelectField, keyof SettingFieldBase | 'type' | 'options'>;
+type ActionExtras = FieldExtras &
+  Omit<ActionField, keyof SettingFieldBase | 'type' | 'buttons'>;
 
 const toggle = (
   key: string,
@@ -57,28 +52,22 @@ const toggle = (
 const text = (
   key: string,
   label: () => string,
-  extras: FieldExtras & { placeholder?: () => string } = {},
+  extras: TextExtras = {},
 ): TextField => ({ type: 'text', key, label, ...extras });
 
 const select = (
   key: string,
   label: () => string,
-  options: SettingOption[] | (() => Promise<SettingOption[]>),
-  extras: FieldExtras & { variant?: SelectField['variant'] } = {},
+  options: SelectField['options'],
+  extras: SelectExtras = {},
 ): SelectField => ({ type: 'select', key, label, options, ...extras });
 
 const action = (
   key: string,
   label: () => string,
   buttons: ActionField['buttons'],
-  extras: FieldExtras = {},
-): ActionField => ({
-  type: 'action',
-  key,
-  label,
-  buttons,
-  ...extras,
-});
+  extras: ActionExtras = {},
+): ActionField => ({ type: 'action', key, label, buttons, ...extras });
 
 /** Options whose value is only read when the app (re)starts. */
 const AT_STARTUP = { restartNeeded: true } satisfies FieldExtras;
@@ -121,7 +110,6 @@ export const buildAppSections = (): AppSection[] => {
       id: 'general',
       icon: 'settings',
       label: () => t('settings-ui.sections.general.label'),
-      sub: () => t('settings-ui.sections.general.sub'),
       groups: [
         {
           title: () => t('settings-ui.groups.updates-session'),
@@ -175,7 +163,6 @@ export const buildAppSections = (): AppSection[] => {
       id: 'appearance',
       icon: 'palette',
       label: () => t('settings-ui.sections.appearance.label'),
-      sub: () => t('settings-ui.sections.appearance.sub'),
       groups: [
         {
           title: () => t('settings-ui.groups.interface'),
@@ -216,6 +203,13 @@ export const buildAppSections = (): AppSection[] => {
               'options.swapLikeButtonsOrder',
               menuLabel('visual-tweaks.submenu.like-buttons.swap'),
               AT_STARTUP,
+            ),
+            toggle(
+              'options.usePodcastParticipantAsArtist',
+              () => t('settings-ui.fields.podcast-artist'),
+              {
+                description: () => t('settings-ui.fields.podcast-artist-desc'),
+              },
             ),
           ],
         },
@@ -263,10 +257,11 @@ export const buildAppSections = (): AppSection[] => {
                     'visual-tweaks.submenu.theme.submenu.import-css-file',
                   ),
                   onClick: async () => {
-                    const paths = await pickFiles([
-                      { name: 'CSS Files', extensions: ['css'] },
-                    ]);
-                    if (paths.length) await bridge.importThemeCss(paths);
+                    const path = await bridge.pickPath({
+                      properties: ['openFile'],
+                      filters: [{ name: 'CSS', extensions: ['css'] }],
+                    });
+                    if (path) await bridge.importThemeCss([path]);
                   },
                 },
                 {
@@ -286,7 +281,6 @@ export const buildAppSections = (): AppSection[] => {
       id: 'window',
       icon: 'window',
       label: () => t('settings-ui.sections.window.label'),
-      sub: () => t('settings-ui.sections.window.sub'),
       groups: [
         {
           title: () => t('settings-ui.groups.window'),
@@ -353,7 +347,6 @@ export const buildAppSections = (): AppSection[] => {
       id: 'advanced',
       icon: 'tune',
       label: () => t('settings-ui.sections.advanced.label'),
-      sub: () => t('settings-ui.sections.advanced.sub'),
       groups: [
         {
           title: () => t('settings-ui.groups.network'),
@@ -427,14 +420,12 @@ export const buildAppSections = (): AppSection[] => {
       id: 'plugins',
       icon: 'puzzle',
       label: () => t('settings-ui.sections.plugins.label'),
-      sub: () => t('settings-ui.sections.plugins.sub'),
       groups: [],
     },
     {
       id: 'about',
       icon: 'info',
       label: () => t('settings-ui.sections.about.label'),
-      sub: () => t('settings-ui.sections.about.sub'),
       groups: [],
     },
   ];

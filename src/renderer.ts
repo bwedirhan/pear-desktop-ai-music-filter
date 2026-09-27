@@ -471,7 +471,9 @@ function onApiLoaded() {
 
   // Remove upgrade button
   if (window.mainConfig.get('options.removeUpgradeButton')) {
-    const sectionBtns = document.querySelectorAll('#sections ytmusic-guide-section-renderer[is-primary] #items ytmusic-guide-entry-renderer:not(.pear-settings-btn)');
+    const sectionBtns = document.querySelectorAll(
+      '#sections ytmusic-guide-section-renderer[is-primary] #items ytmusic-guide-entry-renderer:not(.pear-settings-btn)',
+    );
     const upgradeBtn = sectionBtns[sectionBtns.length - 1] as HTMLElement;
     upgradeBtn.style.display = 'none';
   }

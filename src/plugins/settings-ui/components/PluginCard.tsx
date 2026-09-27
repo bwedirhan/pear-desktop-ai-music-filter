@@ -8,7 +8,7 @@ import { SettingsField } from './SettingsField';
 
 import type { CustomFieldContext, SettingsGroup } from '@/types/settings';
 
-export interface PluginCardProps {
+interface PluginCardProps {
   name: string;
   description?: string;
   restartNeeded?: boolean;
@@ -20,6 +20,7 @@ export interface PluginCardProps {
   onExpand: () => void;
   getValue: (key: string) => unknown;
   setValue: (key: string, value: unknown) => void;
+  /** Sliders fire per pixel, so their writes are debounced by the caller. */
   setSliderValue: (key: string, value: unknown) => void;
   resolveComponent?: (
     id: string,
@@ -66,7 +67,7 @@ export const PluginCard = (props: PluginCardProps) => (
         <Switch
           checked={props.enabled}
           label={props.name}
-          onChange={(v) => props.onToggle(v)}
+          onChange={props.onToggle}
         />
       </div>
     </div>
@@ -85,11 +86,13 @@ export const PluginCard = (props: PluginCardProps) => (
                     accessors={{
                       getValue: props.getValue,
                       setValue: props.setValue,
-                      setSliderValue: props.setSliderValue,
                     }}
                     field={field}
-                    onChange={(v) => props.setValue(field.key, v)}
-                    onSliderChange={(v) => props.setSliderValue(field.key, v)}
+                    onChange={(value) =>
+                      field.type === 'slider'
+                        ? props.setSliderValue(field.key, value)
+                        : props.setValue(field.key, value)
+                    }
                     resolveComponent={props.resolveComponent}
                     value={props.getValue(field.key)}
                   />

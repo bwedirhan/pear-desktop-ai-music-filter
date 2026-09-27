@@ -45,6 +45,8 @@ export interface RendererContext<
     send: IpcRenderer['send'];
     invoke: IpcRenderer['invoke'];
     on: (event: string, listener: CallableFunction) => void;
+    /** Removes one listener, leaving the channel's other listeners alone. */
+    off: (event: string, listener: CallableFunction) => void;
     removeAllListeners: (event: string) => void;
   };
 }

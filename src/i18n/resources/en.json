@@ -1351,7 +1351,6 @@
     "name": "Settings UI",
     "description": "Adds an in-app settings panel, opened from the sidebar",
     "title": "Settings",
-    "subtitle": "Pear Desktop",
     "search-placeholder": "Search settings",
     "search-results": "Search results",
     "search-matching": "Matching “{{query}}”",
@@ -1384,28 +1383,22 @@
     },
     "sections": {
       "general": {
-        "label": "General",
-        "sub": "Updates, session and language"
+        "label": "General"
       },
       "appearance": {
-        "label": "Appearance",
-        "sub": "Interface and window title"
+        "label": "Appearance"
       },
       "window": {
-        "label": "Window & Tray",
-        "sub": "Window behaviour and system tray"
+        "label": "Window & Tray"
       },
       "advanced": {
-        "label": "Advanced",
-        "sub": "Network, performance and developer"
+        "label": "Advanced"
       },
       "plugins": {
-        "label": "Plugins",
-        "sub": "Enable plugins and configure them"
+        "label": "Plugins"
       },
       "about": {
-        "label": "About",
-        "sub": "Version, Check for updates, App info"
+        "label": "About"
       }
     },
     "groups": {
@@ -1419,6 +1412,11 @@
       "performance": "Performance",
       "configuration": "Configuration"
     },
-    "choose-files": "Choose files…"
+    "stepper-decrement": "Decrease",
+    "stepper-increment": "Increase",
+    "fields": {
+      "podcast-artist": "Use podcast participants as artists",
+      "podcast-artist-desc": "Off: a podcast episode’s artist is the channel that published it."
+    }
   }
 }

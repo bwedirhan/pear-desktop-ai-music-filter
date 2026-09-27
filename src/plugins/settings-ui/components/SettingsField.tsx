@@ -34,16 +34,16 @@ import type {
   NumberField,
   SelectField,
   SettingField,
+  SettingOption,
   SettingOptions,
   SliderField,
   TextField,
 } from '@/types/settings';
 
-export interface SettingsFieldProps {
+interface SettingsFieldProps {
   field: SettingField;
   value: unknown;
   onChange: (value: unknown) => void;
-  onSliderChange?: (value: unknown) => void;
   accessors?: FieldAccessors;
   /** Resolve a `"<pluginId>.<name>"` custom component. */
   resolveComponent?: (
@@ -51,15 +51,21 @@ export interface SettingsFieldProps {
   ) => Component<{ ctx: CustomFieldContext }> | undefined;
 }
 
-// Resolve static or async option providers once per field.
-const useResolvedOptions = (getOptions: () => SettingOptions) => {
+/** Resolve static or async option providers once per field. */
+const useResolvedOptions = (getField: () => { options: SettingOptions }) => {
   const [options, { refetch }] = createResource(
-    getOptions,
+    () => getField().options,
     async (opts) => (typeof opts === 'function' ? await opts() : opts),
-    { initialValue: [] },
+    { initialValue: [] as SettingOption[] },
   );
   return { options, refetch };
 };
+
+/** A dynamic list can be re-read: by hand, or when a stored value goes missing. */
+const isRefreshable = (field: {
+  options: SettingOptions;
+  refreshable?: boolean;
+}) => typeof field.options === 'function' && field.refreshable !== false;
 
 const SPIN_MIN_MS = 500;
 const RefreshButton = (p: { onRefresh: () => unknown }) => {
@@ -68,8 +74,10 @@ const RefreshButton = (p: { onRefresh: () => unknown }) => {
     if (spinning()) return;
     setSpinning(true);
     try {
+      // The minimum dwell keeps the spin visible on an instant re-read. A
+      // failed re-read keeps the list the field already has.
       await Promise.all([
-        Promise.resolve(p.onRefresh()),
+        Promise.resolve(p.onRefresh()).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, SPIN_MIN_MS)),
       ]);
     } finally {
@@ -95,20 +103,16 @@ const SelectControl = (p: {
   value: unknown;
   onChange: (value: unknown) => void;
 }) => {
-  const { options, refetch } = useResolvedOptions(() => p.field.options);
+  const { options, refetch } = useResolvedOptions(() => p.field);
   const value = () => (p.value as string | number | undefined) ?? '';
-  // Bundled lists (languages) are resolved lazily but cant go stale, so they
-  // get no refresh button and no re-read.
-  const isRefreshable = () =>
-    typeof p.field.options === 'function' && p.field.refreshable !== false;
 
-  // A stored value missing from a dynamic list means the list is stale (a
-  // theme was imported, a device plugged in): re-read it once per value.
+  // A stored value missing from a dynamic list means the list is stale (a theme
+  // was imported, a device plugged in): re-read it once per value.
   let refreshedFor: unknown;
   createEffect(() => {
     const current = value();
     if (
-      !isRefreshable() ||
+      !isRefreshable(p.field) ||
       current === '' ||
       current === refreshedFor ||
       options().length === 0 ||
@@ -118,7 +122,9 @@ const SelectControl = (p: {
     }
 
     refreshedFor = current;
-    refetch();
+    // A failed re-read keeps the last list; a rejection here would otherwise
+    // leave the resource errored, and every later options() read would throw.
+    Promise.resolve(refetch()).catch(() => {});
   });
 
   // Same as the menu's Language > Sync entries: the value comes back from the
@@ -135,20 +141,16 @@ const SelectControl = (p: {
         <Show
           fallback={
             <RadioGroup
-              onChange={(v) => p.onChange(v)}
+              onChange={p.onChange}
               options={options()}
               value={value()}
             />
           }
           when={p.field.variant === 'dropdown'}
         >
-          <Dropdown
-            onChange={(v) => p.onChange(v)}
-            options={options()}
-            value={value()}
-          />
+          <Dropdown onChange={p.onChange} options={options()} value={value()} />
         </Show>
-        <Show when={isRefreshable()}>
+        <Show when={isRefreshable(p.field)}>
           <RefreshButton onRefresh={() => refetch()} />
         </Show>
       </div>
@@ -207,7 +209,7 @@ const NumberControl = (p: {
     <NumberStepper
       max={p.field.max}
       min={p.field.min}
-      onChange={(v) => p.onChange(v)}
+      onChange={p.onChange}
       step={p.field.step}
       unit={p.field.unit}
       value={Number(p.value ?? p.field.min ?? 0)}
@@ -222,7 +224,7 @@ const TextControl = (p: {
 }) => (
   <div class="sui-field__control">
     <TextInput
-      onChange={(v) => p.onChange(v)}
+      onChange={p.onChange}
       placeholder={p.field.placeholder?.()}
       value={(p.value as string | undefined) ?? ''}
     />
@@ -234,18 +236,18 @@ const MultiSelectControl = (p: {
   value: unknown;
   onChange: (value: unknown) => void;
 }) => {
-  const { options, refetch } = useResolvedOptions(() => p.field.options);
+  const { options, refetch } = useResolvedOptions(() => p.field);
   return (
     <div class="sui-field__control">
       <div class="sui-control-row">
         <CheckGroup
-          onChange={(v) => p.onChange(v)}
+          onChange={p.onChange}
           options={options()}
           values={
-            Array.isArray(p.value) ? (p.value as (string | number)[]) : []
+            Array.isArray(p.value) ? (p.value as SettingOption['value'][]) : []
           }
         />
-        <Show when={typeof p.field.options === 'function'}>
+        <Show when={isRefreshable(p.field)}>
           <RefreshButton onRefresh={() => refetch()} />
         </Show>
       </div>
@@ -253,34 +255,32 @@ const MultiSelectControl = (p: {
   );
 };
 
+/** The field's own read/write, plus the dialogs an `action` button may open. */
 const ActionControl = (p: {
   field: ActionField;
   accessors?: FieldAccessors;
-}) => {
-  const helpers = () =>
-    p.accessors ? { ...p.accessors, pickDirectory, pickFile } : undefined;
-  return (
-    <div class="sui-field__control">
-      <div class="sui-actions">
-        <For each={p.field.buttons}>
-          {(button) => (
-            <button
-              class="sui-fieldbtn"
-              disabled={!helpers()}
-              onClick={() => {
-                const bound = helpers();
-                if (bound) button.onClick(bound);
-              }}
-              type="button"
-            >
-              {button.label()}
-            </button>
-          )}
-        </For>
-      </div>
+}) => (
+  <div class="sui-field__control">
+    <div class="sui-actions">
+      <For each={p.field.buttons}>
+        {(button) => (
+          <button
+            class="sui-fieldbtn"
+            disabled={!p.accessors}
+            onClick={() => {
+              if (p.accessors) {
+                button.onClick({ ...p.accessors, pickDirectory, pickFile });
+              }
+            }}
+            type="button"
+          >
+            {button.label()}
+          </button>
+        )}
+      </For>
     </div>
-  );
-};
+  </div>
+);
 
 const CustomControl = (p: {
   field: CustomField;
@@ -336,7 +336,7 @@ export const SettingsField = (props: SettingsFieldProps) => {
           <Switch
             checked={Boolean(props.value)}
             label={field().label()}
-            onChange={(v) => props.onChange(v)}
+            onChange={props.onChange}
           />
         </Show>
       </div>
@@ -353,7 +353,7 @@ export const SettingsField = (props: SettingsFieldProps) => {
         <Match when={field().type === 'slider'}>
           <SliderControl
             field={field() as SliderField}
-            onChange={props.onSliderChange ?? props.onChange}
+            onChange={props.onChange}
             value={props.value}
           />
         </Match>

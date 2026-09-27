@@ -12,14 +12,7 @@ const mb = (kilobytes: number) => `${Math.round(kilobytes / 1024)} MB`;
  */
 export const buildDebugInfo = (meta: AppMeta, plugins: string[]): string => {
   const { memory } = meta;
-  const total = memory.main + memory.renderers + memory.gpu + memory.other;
-
-  const memoryParts = [
-    `main ${mb(memory.main)}`,
-    `renderers ${mb(memory.renderers)}`,
-    `gpu ${mb(memory.gpu)}`,
-  ];
-  if (memory.other > 0) memoryParts.push(`other ${mb(memory.other)}`);
+  const total = memory.main + memory.renderers + memory.gpu;
 
   const gpuFeatures = Object.entries(meta.gpu.features)
     .map(([key, value]) => `${key}: ${value}`)
@@ -32,7 +25,7 @@ export const buildDebugInfo = (meta: AppMeta, plugins: string[]): string => {
     `Electron: ${meta.versions.electron} · Chromium: ${meta.versions.chrome} · Node: ${meta.versions.node}`,
     `CPU: ${meta.cpu.model} (${meta.cpu.threads} threads)`,
     `GPU: ${meta.gpu.renderer ?? meta.gpu.vendor ?? 'unknown'}${driver}`,
-    `Memory: ${mb(total)} total (${memoryParts.join(', ')})`,
+    `Memory: ${mb(total)} total (main ${mb(memory.main)}, renderers ${mb(memory.renderers)}, gpu ${mb(memory.gpu)})`,
   ];
 
   if (gpuFeatures) lines.push(`GPU features: ${gpuFeatures}`);

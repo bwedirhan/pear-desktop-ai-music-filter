@@ -80,9 +80,9 @@ export interface NumberField extends SettingFieldBase {
 export interface FieldAccessors {
   getValue: (key: string) => unknown;
   setValue: (key: string, value: unknown) => void;
-  setSliderValue: (key: string, value: unknown) => void;
 }
 
+/** What an `action` button is handed: the field's accessors plus the dialogs. */
 export interface ActionHelpers extends FieldAccessors {
   pickDirectory: () => Promise<string | undefined>;
   pickFile: (
