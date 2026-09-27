@@ -409,7 +409,7 @@ const initHook = async (win: BrowserWindow) => {
             } else {
               showNeedToRestartDialog([requirement]).catch((err) =>
                 console.error(`Failed to show restart dialog for ${id}:`, err),
-              );;
+              );
             }
           }
         }
