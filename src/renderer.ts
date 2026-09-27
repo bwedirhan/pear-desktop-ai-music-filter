@@ -471,22 +471,9 @@ function onApiLoaded() {
 
   // Remove upgrade button
   if (window.mainConfig.get('options.removeUpgradeButton')) {
-    const itemsSelector = 'ytmusic-guide-section-renderer #items';
-    let selector = 'ytmusic-guide-entry-renderer:last-child';
-
-    const upgradeBtnIcon = document.querySelector<SVGGElement>(
-      'iron-iconset-svg[name="yt-sys-icons"] #\u0079\u006f\u0075\u0074\u0075\u0062\u0065_music_monochrome',
-    );
-    if (upgradeBtnIcon) {
-      const path = upgradeBtnIcon.firstChild as SVGPathElement;
-      const data = path.getAttribute('d')!.substring(0, 15);
-      selector = `ytmusic-guide-entry-renderer:has(> tp-yt-paper-item > yt-icon path[d^="${data}"])`;
-    }
-
-    const styles = document.createElement('style');
-    styles.textContent = `${itemsSelector} ${selector} { display: none; }`;
-
-    document.head.appendChild(styles);
+    const sectionBtns = document.querySelectorAll('#sections ytmusic-guide-section-renderer[is-primary] #items ytmusic-guide-entry-renderer:not(.pear-settings-btn)');
+    const upgradeBtn = sectionBtns[sectionBtns.length - 1] as HTMLElement;
+    upgradeBtn.style.display = 'none';
   }
 
   // Hide / Force show like buttons

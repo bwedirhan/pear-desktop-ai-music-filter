@@ -1,10 +1,10 @@
 import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 
+import { t } from '@/i18n';
 import { createRenderer } from '@/utils';
 import { waitForElement } from '@/utils/wait-for-element';
 
-import { SettingsButton } from './components/SettingsButton';
 import { SettingsModal } from './components/SettingsModal';
 import { ThemePaletteField } from './components/ThemePalette';
 import { listenStorePush, refreshStore, setIpc } from './state';
@@ -14,8 +14,19 @@ const [open, setOpen] = createSignal(false);
 const GUIDE_SELECTORS = ['#guide-renderer', '#mini-guide-renderer'];
 const ITEMS_SELECTOR = 'ytmusic-guide-section-renderer[is-primary] > #items';
 
-/** Injected buttons, kept so they can be unmounted with the plugin. */
-const injected: { host: HTMLElement; dispose: () => void }[] = [];
+/**
+ * YTM's own sidebar entry, driven by the inner `guideEntryRenderer` payload.
+ * Without a `navigationEndpoint` its built-in tap handler does nothing.
+ */
+type GuideEntryRendererElement = HTMLElement & {
+  isCollapsed: boolean;
+  data: {
+    isPrimary: boolean;
+    icon: { iconType: string };
+    formattedTitle: { runs: { text: string }[] };
+  };
+};
+
 let modalHost: HTMLElement | undefined;
 let modalDispose: (() => void) | undefined;
 
@@ -23,16 +34,18 @@ const injectButton = (guide: HTMLElement) => {
   const items = guide.querySelector(ITEMS_SELECTOR);
   if (!items) return;
 
-  const host = document.createElement('div');
-  host.classList.add('ytmd-sui-entry-host');
-  host.classList.add(guide.id.startsWith('mini-') ? 'mini' : 'normal');
+  const host = document.createElement(
+    'ytmusic-guide-entry-renderer',
+  ) as GuideEntryRendererElement;
+  host.classList.add('pear-settings-btn');
+  host.isCollapsed = guide.id.startsWith('mini-');
+  host.data = {
+    isPrimary: true,
+    icon: { iconType: 'SETTINGS_MATERIAL' },
+    formattedTitle: { runs: [{ text: t('settings-ui.title') }] },
+  };
+  host.addEventListener('tap', () => setOpen(true));
   items.appendChild(host);
-
-  const dispose = render(
-    () => <SettingsButton onClick={() => setOpen(true)} />,
-    host,
-  );
-  injected.push({ host, dispose });
 };
 
 const mountModal = () => {
@@ -58,10 +71,9 @@ const teardownUi = () => {
   modalHost?.remove();
   modalHost = undefined;
 
-  for (const { host, dispose } of injected.splice(0)) {
-    dispose();
-    host.remove();
-  }
+  document
+    .querySelectorAll('.pear-settings-btn')
+    .forEach((host) => host.remove());
 
   setOpen(false);
 };
