@@ -27,6 +27,67 @@ import { createBackend } from '@/utils';
 
 import type { SettingsUIConfig } from './index';
 
+/** Subset of chromium's GPUInfo that the debug info cares about. */
+interface GpuInfo {
+  auxAttributes?: {
+    driverVersion?: string;
+    glRenderer?: string;
+    glVendor?: string;
+    softwareRendering?: boolean;
+  };
+  gpuDevice?: {
+    active?: boolean;
+    deviceId?: number;
+    deviceString?: string;
+    driverVendor?: string;
+    driverVersion?: string;
+    vendorId?: number;
+    vendorString?: string;
+  }[];
+}
+
+/** Vendor ids, for when chromium has no name for the card. */
+const GPU_VENDORS: Record<number, string> = {
+  0x1002: 'AMD',
+  0x1022: 'AMD',
+  0x106b: 'Apple',
+  0x10de: 'NVIDIA',
+  0x13b5: 'ARM',
+  0x5143: 'Qualcomm',
+  0x8086: 'Intel',
+};
+
+/**
+ * A readable GPU name. `complete` gives chromium's renderer string, which is
+ * what chrome://gpu shows; the bus ids are the fallback when it does not.
+ */
+const describeGpu = (info: GpuInfo) => {
+  const devices = info.gpuDevice ?? [];
+  const device = devices.find((entry) => entry.active) ?? devices[0];
+
+  const named = [device?.vendorString, device?.deviceString]
+    .filter(Boolean)
+    .join(' ');
+  const ids = [
+    GPU_VENDORS[device?.vendorId ?? 0] ?? 'GPU',
+    device?.deviceId ? `0x${device.deviceId.toString(16)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return {
+    renderer:
+      info.auxAttributes?.glRenderer ||
+      named ||
+      (device ? ids : '') ||
+      (info.auxAttributes?.softwareRendering
+        ? 'software rendering'
+        : undefined),
+    vendor: info.auxAttributes?.glVendor ?? device?.driverVendor,
+    driver: device?.driverVersion || info.auxAttributes?.driverVersion,
+  };
+};
+
 const CHANNELS = [
   'ytmd-sui:load-store',
   'ytmd-sui:option-set',
@@ -118,7 +179,7 @@ export const backend = createBackend<
       // renderers, whatever Electron happens to call them.
       const main =
         workingSet(['Browser']) || Math.round(process.memoryUsage().rss / 1024);
-      const gpu = workingSet(['GPU']);
+      const gpuMemory = workingSet(['GPU']);
       const other = workingSet([
         'Utility',
         'Zygote',
@@ -131,14 +192,16 @@ export const backend = createBackend<
         (sum, metric) => sum + metric.memory.workingSetSize,
         0,
       );
-      const renderers = Math.max(0, total - main - gpu - other);
+      const renderers = Math.max(0, total - main - gpuMemory - other);
 
       const cpus = os.cpus();
-      const info = (await app.getGPUInfo('basic')) as {
-        auxAttributes?: { glRenderer?: string; glVendor?: string };
-        gpuDevice?: { driverVendor?: string; driverVersion?: string }[];
-      };
-      const device = info.gpuDevice?.[0];
+
+      let gpu: GpuInfo = {};
+      try {
+        // Rejects when the GPU is entirely disabled, so keep whatever we have:
+        // the feature status still says whether that is the case.
+        gpu = (await app.getGPUInfo('complete')) as GpuInfo;
+      } catch {}
 
       return {
         name: app.getName(),
@@ -156,12 +219,10 @@ export const backend = createBackend<
           threads: cpus.length,
         },
         gpu: {
-          renderer: info.auxAttributes?.glRenderer,
-          vendor: info.auxAttributes?.glVendor ?? device?.driverVendor,
-          driver: device?.driverVersion,
+          ...describeGpu(gpu),
           features: { ...app.getGPUFeatureStatus() },
         },
-        memory: { main, renderers, gpu, other },
+        memory: { main, renderers, gpu: gpuMemory, other },
       };
     });
 
