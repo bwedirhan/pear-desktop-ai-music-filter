@@ -13,7 +13,7 @@ import { bridge, store, type AppMeta } from '../state';
 const ICON_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(iconSvg)}`;
 const YTM_ICON_SRC = iconYtm;
 
-const REPO = 'https://github.com/pear-devs/pear-desktop';
+const REPO = 'https://github.com/michei69/pear-desktop';
 
 interface LinkDef {
   icon: 'github' | 'external';
