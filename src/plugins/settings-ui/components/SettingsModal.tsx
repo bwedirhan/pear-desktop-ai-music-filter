@@ -18,6 +18,7 @@ import { Icon } from './Icon';
 import { PluginCard } from './PluginCard';
 import { SettingsField } from './SettingsField';
 
+import { buildDebugInfo, useCopyFeedback } from '../debug-info';
 import { filterGroupsByPlatform } from '../platform';
 import { buildAppSections } from '../schema/app-settings';
 import {
@@ -72,6 +73,7 @@ export const SettingsModal = (props: {
   const [active, setActive] = createSignal<string>('general');
   const [query, setQuery] = createSignal('');
   const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set());
+  const debugCopied = useCopyFeedback();
   let modalEl: HTMLDivElement | undefined;
   let sidebarEl: HTMLElement | undefined;
   const [restartFlagged, setRestartFlagged] = createSignal(false);
@@ -502,7 +504,26 @@ export const SettingsModal = (props: {
           </nav>
 
           <div class="sui-sidebar__foot">
-            <span>v{appMeta()?.version ?? ''}</span>
+            <button
+              class="sui-sidebar__version"
+              onClick={() => {
+                const m = appMeta();
+                if (m) {
+                  debugCopied.copy(
+                    buildDebugInfo(
+                      m,
+                      enabledPlugins().map((plugin) => plugin.name),
+                    ),
+                  );
+                }
+              }}
+              title={t('settings-ui.about.copy-debug')}
+              type="button"
+            >
+              {debugCopied.copied()
+                ? t('settings-ui.about.copied')
+                : `v${appMeta()?.version ?? ''}`}
+            </button>
             <a
               href="#"
               onClick={(e) => {

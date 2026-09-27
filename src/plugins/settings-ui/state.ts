@@ -23,6 +23,24 @@ export interface AppMeta {
     chrome: string;
     node: string;
   };
+  cpu: {
+    model: string;
+    threads: number;
+  };
+  gpu: {
+    renderer?: string;
+    vendor?: string;
+    driver?: string;
+    /** From app.getGPUFeatureStatus(), e.g. `{ gpu_compositing: 'enabled' }`. */
+    features: Record<string, string>;
+  };
+  /** Working set in kilobytes, per process group. */
+  memory: {
+    main: number;
+    renderers: number;
+    gpu: number;
+    other: number;
+  };
 }
 
 // ---- reactive config snapshot (seeded + pushed from the backend) ----

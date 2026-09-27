@@ -106,18 +106,64 @@ export const backend = createBackend<
       window.webContents.toggleDevTools(),
     );
     ipc.handle('ytmd-sui:restart', () => restart());
-    ipc.handle('ytmd-sui:app-meta', () => ({
-      name: app.getName(),
-      version: app.getVersion(),
-      platform: process.platform,
-      arch: process.arch,
-      osVersion: `${os.type()} ${os.release()}`,
-      versions: {
-        electron: process.versions.electron,
-        chrome: process.versions.chrome,
-        node: process.versions.node,
-      },
-    }));
+    ipc.handle('ytmd-sui:app-meta', async () => {
+      const metrics = app.getAppMetrics();
+      const workingSet = (of: string[]) =>
+        metrics
+          .filter((metric) => of.includes(metric.type))
+          .reduce((total, metric) => total + metric.memory.workingSetSize, 0);
+
+      // Kilobytes, as Electron reports them. The Browser entry is the app's own
+      // node process; whatever is left after the known helpers is the chromium
+      // renderers, whatever Electron happens to call them.
+      const main =
+        workingSet(['Browser']) || Math.round(process.memoryUsage().rss / 1024);
+      const gpu = workingSet(['GPU']);
+      const other = workingSet([
+        'Utility',
+        'Zygote',
+        'Sandbox helper',
+        'Pepper Plugin',
+        'Pepper Plugin Broker',
+        'Unknown',
+      ]);
+      const total = metrics.reduce(
+        (sum, metric) => sum + metric.memory.workingSetSize,
+        0,
+      );
+      const renderers = Math.max(0, total - main - gpu - other);
+
+      const cpus = os.cpus();
+      const info = (await app.getGPUInfo('basic')) as {
+        auxAttributes?: { glRenderer?: string; glVendor?: string };
+        gpuDevice?: { driverVendor?: string; driverVersion?: string }[];
+      };
+      const device = info.gpuDevice?.[0];
+
+      return {
+        name: app.getName(),
+        version: app.getVersion(),
+        platform: process.platform,
+        arch: process.arch,
+        osVersion: `${os.type()} ${os.release()}`,
+        versions: {
+          electron: process.versions.electron,
+          chrome: process.versions.chrome,
+          node: process.versions.node,
+        },
+        cpu: {
+          model: cpus[0]?.model.trim() ?? 'unknown',
+          threads: cpus.length,
+        },
+        gpu: {
+          renderer: info.auxAttributes?.glRenderer,
+          vendor: info.auxAttributes?.glVendor ?? device?.driverVendor,
+          driver: device?.driverVersion,
+          features: { ...app.getGPUFeatureStatus() },
+        },
+        memory: { main, renderers, gpu, other },
+      };
+    });
 
     ipc.handle('ytmd-sui:open-external', async (url: string) => {
       try {

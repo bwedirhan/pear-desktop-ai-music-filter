@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 
 import { t } from '@/i18n';
 
@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 
 import iconYtm from '../../../../assets/icon-ytm.png?inline';
 import iconSvg from '../../../../assets/icon.svg?raw';
+import { buildDebugInfo, useCopyFeedback } from '../debug-info';
 import { bridge, store, type AppMeta } from '../state';
 
 // Both logos inline: the YouTube Music one only ships as a PNG, and the
@@ -39,7 +40,7 @@ export const AboutSection = (props: {
   enabledPlugins?: string[];
 }) => {
   const meta = () => props.meta;
-  const [copied, setCopied] = createSignal(false);
+  const { copied, copy } = useCopyFeedback();
 
   // The same artwork the app registers with the OS: the original logo, or
   // YouTube Music's when that option is on.
@@ -109,24 +110,9 @@ export const AboutSection = (props: {
     },
   ];
 
-  const debugInfo = () => {
+  const copyDebug = () => {
     const m = meta();
-    if (!m) return '';
-    return [
-      `${m.name} v${m.version}`,
-      `Platform: ${m.platform} (${m.arch})`,
-      `Electron: ${m.versions.electron}`,
-      `Chromium: ${m.versions.chrome}`,
-      `Node: ${m.versions.node}`,
-    ].join('\n');
-  };
-
-  const copyDebug = async () => {
-    try {
-      await navigator.clipboard.writeText(debugInfo());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    if (m) copy(buildDebugInfo(m, props.enabledPlugins ?? []));
   };
 
   return (
