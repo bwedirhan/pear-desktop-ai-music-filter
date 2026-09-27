@@ -8,6 +8,18 @@ import { QualitySettingButton } from './templates/quality-setting-button';
 
 import type { MusicPlayer } from '@/types/music-player';
 
+// The player UI is torn down and rebuilt while the app runs, which takes the
+// button with it, so the newest api has to be reachable from the re-attach.
+let playerApi: MusicPlayer | null = null;
+
+type QualityChangerRenderer = {
+  qualitySettingsButtonContainer: HTMLElement;
+  observer: MutationObserver | null;
+  rafId: number;
+  mounted: boolean;
+  sync: () => void;
+};
+
 export default createPlugin({
   name: () => t('plugins.quality-changer.name'),
   description: () => t('plugins.quality-changer.description'),
@@ -43,17 +55,43 @@ export default createPlugin({
 
   renderer: {
     qualitySettingsButtonContainer: document.createElement('div'),
+    observer: null as MutationObserver | null,
+    rafId: 0,
+    mounted: false,
+    /** Puts the button back whenever the player UI is rebuilt without it. */
+    sync(this: QualityChangerRenderer) {
+      if (!this.mounted) {
+        return;
+      }
+
+      const topRowButtons = document.querySelector(
+        '.top-row-buttons.ytmusic-player',
+      );
+      if (topRowButtons?.contains(this.qualitySettingsButtonContainer)) {
+        return;
+      }
+
+      topRowButtons?.prepend(this.qualitySettingsButtonContainer);
+    },
     onPlayerApiReady(api: MusicPlayer, context) {
+      playerApi = api;
+
       const chooseQuality = async (e: MouseEvent) => {
         e.stopPropagation();
 
-        const qualityLevels = api.getAvailableQualityLevels();
+        if (!playerApi) {
+          return;
+        }
 
-        const currentIndex = qualityLevels.indexOf(api.getPlaybackQuality());
+        const qualityLevels = playerApi.getAvailableQualityLevels();
+
+        const currentIndex = qualityLevels.indexOf(
+          playerApi.getPlaybackQuality(),
+        );
 
         const quality = (await context.ipc.invoke(
           'peard:quality-changer',
-          api.getAvailableQualityLabels(),
+          playerApi.getAvailableQualityLabels(),
           currentIndex,
         )) as {
           response: number;
@@ -64,9 +102,15 @@ export default createPlugin({
         }
 
         const newQuality = qualityLevels[quality.response];
-        api.setPlaybackQualityRange(newQuality);
-        api.setPlaybackQuality(newQuality);
+        playerApi.setPlaybackQualityRange(newQuality);
+        playerApi.setPlaybackQuality(newQuality);
       };
+
+      if (this.mounted) {
+        return;
+      }
+
+      this.mounted = true;
 
       render(
         () => (
@@ -80,18 +124,29 @@ export default createPlugin({
         this.qualitySettingsButtonContainer,
       );
 
-      const setup = () => {
-        document
-          .querySelector('.top-row-buttons.ytmusic-player')
-          ?.prepend(this.qualitySettingsButtonContainer);
-      };
+      // Observing the player rather than the whole body keeps this cheap, and
+      // the player only gets replaced on a full page reload.
+      this.observer = new MutationObserver(() => {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = requestAnimationFrame(() => this.sync());
+      });
+      this.observer.observe(
+        document.querySelector('ytmusic-player') ?? document.body,
+        {
+          childList: true,
+          subtree: true,
+        },
+      );
 
-      setup();
+      this.sync();
     },
     stop() {
-      document
-        .querySelector('.top-row-buttons.ytmusic-player')
-        ?.removeChild(this.qualitySettingsButtonContainer);
+      this.mounted = false;
+      this.observer?.disconnect();
+      this.observer = null;
+      cancelAnimationFrame(this.rafId);
+      playerApi = null;
+      this.qualitySettingsButtonContainer.remove();
     },
   },
 });
