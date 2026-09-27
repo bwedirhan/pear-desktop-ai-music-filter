@@ -2,7 +2,7 @@ import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 
 import type { defaultConfig } from '@/config/defaults';
-import type { ThemeState } from '@/themes/types';
+import type { ThemePalette, ThemeState } from '@/themes/types';
 import type { RendererContext } from '@/types/contexts';
 import type { RestartRequirement } from '@/types/restart';
 
@@ -83,6 +83,29 @@ export const listenStorePush = () => {
   ipc!.on('ytmd-sui:store-changed', (next: StoreShape) => {
     setStore(next);
   });
+};
+
+// ---- theme list (loaded at start, refreshed when the backend says so) ----
+const [themes, setThemes] = createSignal<ThemeState>();
+
+export const refreshThemes = async () => {
+  try {
+    setThemes(await bridge.themes());
+  } catch {
+    // Keep the list we have; the modal then just shows no palette.
+  }
+};
+
+export const listenThemesPush = () => {
+  ipc!.on('peard:themes-changed', () => {
+    refreshThemes();
+  });
+};
+
+/** Palette variables of the selected theme; empty when it has none. */
+export const themePalette = (): ThemePalette => {
+  const id = store()?.options.theme ?? '';
+  return themes()?.themes.find((theme) => theme.id === id)?.palette ?? {};
 };
 
 // ---- value helpers ----

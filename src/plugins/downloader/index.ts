@@ -62,12 +62,15 @@ export default createPlugin({
           type: 'action',
           key: 'downloadFolder',
           label: () => t('plugins.downloader.menu.choose-download-folder'),
-          buttonLabel: () =>
-            t('plugins.downloader.menu.choose-download-folder'),
-          onClick: async ({ pickDirectory, setValue }) => {
-            const dir = await pickDirectory();
-            if (dir) setValue('downloadFolder', dir);
-          },
+          buttons: [
+            {
+              label: () => t('plugins.downloader.menu.choose-download-folder'),
+              onClick: async ({ pickDirectory, setValue }) => {
+                const dir = await pickDirectory();
+                if (dir) setValue('downloadFolder', dir);
+              },
+            },
+          ],
         },
         {
           type: 'switch',
@@ -138,12 +141,15 @@ export default createPlugin({
           label: () => t('plugins.downloader.settings.finish-folder'),
           description: () =>
             t('plugins.downloader.settings.finish-folder-description'),
-          buttonLabel: () =>
-            t('plugins.downloader.menu.choose-download-folder'),
-          onClick: async ({ pickDirectory, setValue }) => {
-            const dir = await pickDirectory();
-            if (dir) setValue('downloadOnFinish.folder', dir);
-          },
+          buttons: [
+            {
+              label: () => t('plugins.downloader.menu.choose-download-folder'),
+              onClick: async ({ pickDirectory, setValue }) => {
+                const dir = await pickDirectory();
+                if (dir) setValue('downloadOnFinish.folder', dir);
+              },
+            },
+          ],
         },
       ],
     },

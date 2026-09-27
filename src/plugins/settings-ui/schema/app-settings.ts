@@ -4,7 +4,7 @@ import { t } from '@/i18n';
 import { startingPages } from '@/providers/extracted-data';
 import { Platform } from '@/types/plugins';
 
-import { bridge, pickFiles } from '../state';
+import { bridge, pickFiles, themePalette } from '../state';
 
 import type {
   ActionField,
@@ -42,6 +42,10 @@ interface FieldExtras {
   description?: () => string;
   restartNeeded?: boolean;
   platform?: Platform;
+  visible?: () => boolean;
+  hideLabel?: boolean;
+  refreshable?: boolean;
+  languageSync?: boolean;
 }
 
 const toggle = (
@@ -66,15 +70,13 @@ const select = (
 const action = (
   key: string,
   label: () => string,
-  buttonLabel: () => string,
-  onClick: ActionField['onClick'],
+  buttons: ActionField['buttons'],
   extras: FieldExtras = {},
 ): ActionField => ({
   type: 'action',
   key,
   label,
-  buttonLabel,
-  onClick,
+  buttons,
   ...extras,
 });
 
@@ -239,7 +241,8 @@ export const buildAppSections = (): AppSection[] => {
               'options.theme',
               menuLabel('visual-tweaks.submenu.theme.label'),
               buildThemeOptions,
-              { variant: 'dropdown' },
+              // The backend pushes the list when themes are imported.
+              { variant: 'dropdown', refreshable: false },
             ),
             {
               type: 'custom',
@@ -248,27 +251,32 @@ export const buildAppSections = (): AppSection[] => {
                 'visual-tweaks.submenu.theme.submenu.colors.label',
               ),
               component: 'settings-ui.themePalette',
+              // Themes without palette variables have nothing to edit.
+              visible: () => Object.keys(themePalette()).length > 0,
             },
             action(
-              '__theme-import',
+              '__theme-files',
               menuLabel('visual-tweaks.submenu.theme.submenu.import-css-file'),
-              () => t('settings-ui.choose-files'),
-              async () => {
-                const paths = await pickFiles([
-                  { name: 'CSS Files', extensions: ['css'] },
-                ]);
-                if (paths.length) await bridge.importThemeCss(paths);
-              },
-            ),
-            action(
-              '__theme-folder',
-              menuLabel(
-                'visual-tweaks.submenu.theme.submenu.open-themes-folder',
-              ),
-              menuLabel(
-                'visual-tweaks.submenu.theme.submenu.open-themes-folder',
-              ),
-              () => bridge.openThemesFolder(),
+              [
+                {
+                  label: menuLabel(
+                    'visual-tweaks.submenu.theme.submenu.import-css-file',
+                  ),
+                  onClick: async () => {
+                    const paths = await pickFiles([
+                      { name: 'CSS Files', extensions: ['css'] },
+                    ]);
+                    if (paths.length) await bridge.importThemeCss(paths);
+                  },
+                },
+                {
+                  label: menuLabel(
+                    'visual-tweaks.submenu.theme.submenu.open-themes-folder',
+                  ),
+                  onClick: () => bridge.openThemesFolder(),
+                },
+              ],
+              { hideLabel: true },
             ),
           ],
         },
@@ -394,14 +402,22 @@ export const buildAppSections = (): AppSection[] => {
             action(
               '__toggle-devtools',
               menuLabel('advanced-options.submenu.toggle-dev-tools'),
-              menuLabel('advanced-options.submenu.toggle-dev-tools'),
-              () => bridge.toggleDevTools(),
+              [
+                {
+                  label: menuLabel('advanced-options.submenu.toggle-dev-tools'),
+                  onClick: () => bridge.toggleDevTools(),
+                },
+              ],
             ),
             action(
               '__edit-config',
               menuLabel('advanced-options.submenu.edit-config-json'),
-              menuLabel('advanced-options.submenu.edit-config-json'),
-              () => bridge.configEdit(),
+              [
+                {
+                  label: menuLabel('advanced-options.submenu.edit-config-json'),
+                  onClick: () => bridge.configEdit(),
+                },
+              ],
             ),
           ],
         },

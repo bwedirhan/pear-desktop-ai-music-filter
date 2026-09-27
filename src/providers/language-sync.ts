@@ -47,7 +47,8 @@ export const youtubeLanguage = async (
   else if (lang.startsWith('es-')) lang = 'es';
   else if (TO_APP[lang]) lang = TO_APP[lang];
 
-  return languageResources[lang] ? lang : undefined;
+  const resources = await languageResources();
+  return resources[lang] ? lang : undefined;
 };
 
 /** Points YouTube at one of our languages; take a reload to see. */

@@ -1,11 +1,19 @@
-import { createResource, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 
 import { t } from '@/i18n';
 
-import { bridge, patchLocal, store } from '../state';
+import { bridge, patchLocal, store, themePalette } from '../state';
 
 import type { ThemePalette } from '@/themes/types';
 import type { CustomFieldContext } from '@/types/settings';
+
+/** `scrollbar-width` reads as `Scrollbar Width`. */
+const keyLabel = (key: string) =>
+  key
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 
 /**
  * Editor for the selected theme's palette: one text input per palette key,
@@ -14,12 +22,7 @@ import type { CustomFieldContext } from '@/types/settings';
 export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
   const selectedId = () => store()?.options.theme ?? '';
 
-  // Re-read the theme list when the selection changes: an imported theme only
-  // shows up after the backend has written it.
-  const [themes] = createResource(selectedId, () => bridge.themes());
-
-  const selected = () => themes()?.themes.find((th) => th.id === selectedId());
-  const palette = () => selected()?.palette ?? {};
+  const palette = themePalette;
   const keys = () => Object.keys(palette());
 
   // Read overrides from the store so local edits show up immediately.
@@ -51,9 +54,7 @@ export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
         <For each={keys()}>
           {(key) => (
             <label class="sui-palette__row">
-              <span class="sui-palette__key">
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-              </span>
+              <span class="sui-palette__key">{keyLabel(key)}</span>
               <input
                 class="sui-text"
                 onChange={(e) => setValue(key, e.currentTarget.value)}

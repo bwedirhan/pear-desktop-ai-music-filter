@@ -53,25 +53,33 @@ export default createPlugin({
       type: 'action',
       key: 'certPath',
       label: () => t('plugins.api-server.menu.https.submenu.cert.label'),
-      buttonLabel: () => t('plugins.api-server.settings.choose-file'),
-      onClick: async ({ pickFile, setValue }) => {
-        const file = await pickFile([
-          { name: 'Certificate', extensions: ['crt', 'pem'] },
-        ]);
-        if (file) setValue('certPath', file);
-      },
+      buttons: [
+        {
+          label: () => t('plugins.api-server.settings.choose-file'),
+          onClick: async ({ pickFile, setValue }) => {
+            const file = await pickFile([
+              { name: 'Certificate', extensions: ['crt', 'pem'] },
+            ]);
+            if (file) setValue('certPath', file);
+          },
+        },
+      ],
     },
     {
       type: 'action',
       key: 'keyPath',
       label: () => t('plugins.api-server.menu.https.submenu.key.label'),
-      buttonLabel: () => t('plugins.api-server.settings.choose-file'),
-      onClick: async ({ pickFile, setValue }) => {
-        const file = await pickFile([
-          { name: 'Private Key', extensions: ['key', 'pem'] },
-        ]);
-        if (file) setValue('keyPath', file);
-      },
+      buttons: [
+        {
+          label: () => t('plugins.api-server.settings.choose-file'),
+          onClick: async ({ pickFile, setValue }) => {
+            const file = await pickFile([
+              { name: 'Private Key', extensions: ['key', 'pem'] },
+            ]);
+            if (file) setValue('keyPath', file);
+          },
+        },
+      ],
     },
   ],
   menu: onMenu,

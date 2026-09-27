@@ -2,6 +2,7 @@ import {
   createEffect,
   createResource,
   createSignal,
+  For,
   Match,
   Show,
   Switch as SwitchFlow,
@@ -260,17 +261,23 @@ const ActionControl = (p: {
     p.accessors ? { ...p.accessors, pickDirectory, pickFile } : undefined;
   return (
     <div class="sui-field__control">
-      <button
-        class="sui-fieldbtn"
-        disabled={!helpers()}
-        onClick={() => {
-          const bound = helpers();
-          if (bound) p.field.onClick(bound);
-        }}
-        type="button"
-      >
-        {p.field.buttonLabel()}
-      </button>
+      <div class="sui-actions">
+        <For each={p.field.buttons}>
+          {(button) => (
+            <button
+              class="sui-fieldbtn"
+              disabled={!helpers()}
+              onClick={() => {
+                const bound = helpers();
+                if (bound) button.onClick(bound);
+              }}
+              type="button"
+            >
+              {button.label()}
+            </button>
+          )}
+        </For>
+      </div>
     </div>
   );
 };
@@ -301,21 +308,29 @@ export const SettingsField = (props: SettingsFieldProps) => {
   const field = () => props.field;
 
   return (
-    <div class="sui-field">
+    <div
+      class="sui-field"
+      classList={{ 'sui-field--no-label': Boolean(field().hideLabel) }}
+    >
       <div class="sui-field__row">
-        <div class="sui-field__text">
-          <div class="sui-field__label-line">
-            <span class="sui-field__label">{field().label()}</span>
-            <Show when={field().restartNeeded}>
-              <span class="sui-pill" title={t('settings-ui.restart-pill-hint')}>
-                {t('settings-ui.restart-pill')}
-              </span>
+        <Show when={!field().hideLabel}>
+          <div class="sui-field__text">
+            <div class="sui-field__label-line">
+              <span class="sui-field__label">{field().label()}</span>
+              <Show when={field().restartNeeded}>
+                <span
+                  class="sui-pill"
+                  title={t('settings-ui.restart-pill-hint')}
+                >
+                  {t('settings-ui.restart-pill')}
+                </span>
+              </Show>
+            </div>
+            <Show when={field().description}>
+              <div class="sui-field__desc">{field().description!()}</div>
             </Show>
           </div>
-          <Show when={field().description}>
-            <div class="sui-field__desc">{field().description!()}</div>
-          </Show>
-        </div>
+        </Show>
 
         <Show when={field().type === 'switch'}>
           <Switch

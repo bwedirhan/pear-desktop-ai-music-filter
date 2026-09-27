@@ -270,7 +270,7 @@ export const SettingsModal = (props: {
         <div class="sui-group__title">{p.title}</div>
       </Show>
       <div class="sui-group__card">
-        <For each={p.group.fields}>
+        <For each={p.group.fields.filter((field) => field.visible?.() ?? true)}>
           {(field) => (
             <SettingsField
               accessors={{

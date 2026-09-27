@@ -7,7 +7,13 @@ import { waitForElement } from '@/utils/wait-for-element';
 
 import { SettingsModal } from './components/SettingsModal';
 import { ThemePaletteField } from './components/ThemePalette';
-import { listenStorePush, refreshStore, setIpc } from './state';
+import {
+  listenStorePush,
+  listenThemesPush,
+  refreshStore,
+  refreshThemes,
+  setIpc,
+} from './state';
 
 const [open, setOpen] = createSignal(false);
 const [closing, setClosing] = createSignal(false);
@@ -96,7 +102,9 @@ export const renderer = createRenderer({
   async start(ctx) {
     setIpc(ctx.ipc);
     await refreshStore();
+    await refreshThemes();
     listenStorePush();
+    listenThemesPush();
 
     mountModal();
 

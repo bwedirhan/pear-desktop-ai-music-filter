@@ -9,6 +9,10 @@ export interface SettingFieldBase {
   /** Show a "restart" pill and flag the modal's restart banner when changed. */
   restartNeeded?: boolean;
   platform?: Platform;
+  /** Render only while this is true, e.g. a control only some themes have. */
+  visible?: () => boolean;
+  /** Drop the label row above the control, for controls that name themselves. */
+  hideLabel?: boolean;
 }
 
 export interface SwitchField extends SettingFieldBase {
@@ -86,10 +90,15 @@ export interface ActionHelpers extends FieldAccessors {
   ) => Promise<string | undefined>;
 }
 
+export interface ActionButton {
+  label: () => string;
+  onClick: (helpers: ActionHelpers) => void | Promise<void>;
+}
+
 export interface ActionField extends SettingFieldBase {
   type: 'action';
-  buttonLabel: () => string;
-  onClick: (helpers: ActionHelpers) => void | Promise<void>;
+  /** Rendered in one row. */
+  buttons: ActionButton[];
 }
 
 export type CustomFieldContext = FieldAccessors;
