@@ -108,6 +108,20 @@ export const themePalette = (): ThemePalette => {
   return themes()?.themes.find((theme) => theme.id === id)?.palette ?? {};
 };
 
+// ---- widget sizes ----
+/** Remembered for the session: closing the modal unmounts all of it. */
+export interface SettingsLayout {
+  width?: number;
+  height?: number;
+  sidebarWidth?: number;
+}
+
+const [layout, setLayout] = createSignal<SettingsLayout>({});
+export { layout };
+
+export const patchLayout = (patch: SettingsLayout) =>
+  setLayout((current) => ({ ...current, ...patch }));
+
 // ---- value helpers ----
 
 export const getByPath = (obj: unknown, path: string): unknown =>

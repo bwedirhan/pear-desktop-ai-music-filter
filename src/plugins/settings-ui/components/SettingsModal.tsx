@@ -1,4 +1,5 @@
 import {
+  createEffect,
   createMemo,
   createResource,
   createSignal,
@@ -25,6 +26,8 @@ import {
   getAppValue,
   getByPath,
   getPluginConfig,
+  layout,
+  patchLayout,
   setAppValue,
   setPluginValue,
   setPluginSliderValue,
@@ -45,6 +48,16 @@ interface PluginMeta {
 const matches = (query: string, ...parts: (string | undefined)[]) =>
   parts.filter(Boolean).some((p) => p.toLowerCase().includes(query));
 
+/** Resize bounds; the modal's sit inside the stylesheet's 100vw - 40px cap. */
+const MODAL_MIN_WIDTH = 520;
+const MODAL_MIN_HEIGHT = 360;
+const MODAL_MARGIN = 40;
+const SIDEBAR_MIN_WIDTH = 180;
+const SIDEBAR_MAX_WIDTH = 420;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), Math.max(min, max));
+
 const restartRequirementKey = (requirement: RestartRequirement) =>
   requirement.type === 'plugin'
     ? `plugin:${requirement.id}`
@@ -59,6 +72,8 @@ export const SettingsModal = (props: {
   const [active, setActive] = createSignal<string>('general');
   const [query, setQuery] = createSignal('');
   const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set());
+  let modalEl: HTMLDivElement | undefined;
+  let sidebarEl: HTMLElement | undefined;
   const [restartFlagged, setRestartFlagged] = createSignal(false);
   const [restartRequirements, setRestartRequirements] = createSignal<
     RestartRequirement[]
@@ -120,6 +135,80 @@ export const SettingsModal = (props: {
       previousFocus?.focus?.();
     });
   });
+
+  // Apply the remembered sizes; the stylesheet's defaults stand in until there
+  // are any.
+  createEffect(() => {
+    const { height, sidebarWidth, width } = layout();
+    if (sidebarEl)
+      sidebarEl.style.width = sidebarWidth ? `${sidebarWidth}px` : '';
+    if (!modalEl || props.standalone) return;
+    modalEl.style.width = width ? `${width}px` : '';
+    modalEl.style.height = height ? `${height}px` : '';
+  });
+
+  /**
+   * Drag the (invisible) bottom-right grip. The modal is centred, so growing it
+   * by `w` moves that corner only `w / 2`: doubling the pointer delta is what
+   * keeps the corner under the cursor instead of leaving it behind.
+   */
+  const startCornerDrag = (e: PointerEvent) => {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const box = modalEl?.getBoundingClientRect();
+    const startWidth = box?.width ?? 0;
+    const startHeight = box?.height ?? 0;
+
+    trackDrag(e, (move) => {
+      patchLayout({
+        width: clamp(
+          startWidth + (move.clientX - startX) * 2,
+          MODAL_MIN_WIDTH,
+          window.innerWidth - MODAL_MARGIN,
+        ),
+        height: clamp(
+          startHeight + (move.clientY - startY) * 2,
+          MODAL_MIN_HEIGHT,
+          window.innerHeight - MODAL_MARGIN,
+        ),
+      });
+    });
+  };
+
+  /**
+   * Runs `onMove` for every pointer event of a drag, on the grip itself: the
+   * capture keeps it reporting once the cursor leaves the window.
+   */
+  const trackDrag = (e: PointerEvent, onMove: (move: PointerEvent) => void) => {
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    grip.setPointerCapture(e.pointerId);
+
+    const stop = () => {
+      grip.removeEventListener('pointermove', onMove);
+      grip.removeEventListener('pointerup', stop);
+      grip.removeEventListener('pointercancel', stop);
+    };
+    grip.addEventListener('pointermove', onMove);
+    grip.addEventListener('pointerup', stop);
+    grip.addEventListener('pointercancel', stop);
+  };
+
+  /** The sidebar is flush with the modal's left edge, so it tracks the cursor 1:1. */
+  const startSidebarDrag = (e: PointerEvent) => {
+    const startX = e.clientX;
+    const startWidth = sidebarEl?.getBoundingClientRect().width ?? 0;
+
+    trackDrag(e, (move) => {
+      patchLayout({
+        sidebarWidth: clamp(
+          startWidth + move.clientX - startX,
+          SIDEBAR_MIN_WIDTH,
+          SIDEBAR_MAX_WIDTH,
+        ),
+      });
+    });
+  };
 
   const enabledPlugins = createMemo(() => {
     const snap = store();
@@ -352,9 +441,22 @@ export const SettingsModal = (props: {
         <div class="sui-scrim" onClick={close} />
       </Show>
 
-      <div aria-modal="true" class="sui-modal" role="dialog">
+      <div
+        aria-modal="true"
+        class="sui-modal"
+        ref={(el) => {
+          modalEl = el;
+        }}
+        role="dialog"
+      >
         {/* sidebar */}
-        <aside class="sui-sidebar">
+        <aside
+          class="sui-sidebar"
+          ref={(el) => {
+            sidebarEl = el;
+          }}
+        >
+          <div class="sui-sidebar__resizer" onPointerDown={startSidebarDrag} />
           <div class="sui-sidebar__head">
             <div class="sui-sidebar__title">{t('settings-ui.title')}</div>
           </div>
@@ -507,6 +609,10 @@ export const SettingsModal = (props: {
             </Show>
           </div>
         </section>
+
+        <Show when={!props.standalone}>
+          <div class="sui-modal__resizer" onPointerDown={startCornerDrag} />
+        </Show>
       </div>
     </div>
   );

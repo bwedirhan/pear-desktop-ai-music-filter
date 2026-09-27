@@ -112,7 +112,39 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--sui-edge);
+  position: relative;
+  min-width: 180px;
+  max-width: 420px;
 }
+
+/* ---- resize grips ---- */
+/* The modal's corner grip: no mark, the nwse cursor is the only affordance. */
+.sui-modal__resizer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  z-index: 3;
+  cursor: nwse-resize;
+}
+
+/* Straddles the sidebar's border, so the divider itself is the handle. */
+.sui-sidebar__resizer {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 5px;
+  z-index: 3;
+  cursor: col-resize;
+}
+.sui-sidebar__resizer:hover,
+.sui-sidebar__resizer:active {
+  background: var(--sui-primary);
+  opacity: 0.4;
+}
+
 .sui-sidebar__head {
   padding: 22px 20px 14px;
 }
