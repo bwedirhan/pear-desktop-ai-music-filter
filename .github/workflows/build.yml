@@ -7,12 +7,17 @@ on:
 
 env:
   NODE_VERSION: "24.x"
+  # Baked into the build and shown in the About window (src/app-info.ts).
+  PEAR_CHANNEL: beta
+  PEAR_COMMIT: ${{ github.sha }}
 
 jobs:
   build:
+    # Beta builds only produce artifacts, the publish-beta job below owns the release.
     permissions:
-      contents: write
+      contents: read
     name: Build Pear Desktop
+    if: github.repository == 'michei69/pear-desktop'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -44,24 +49,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Only vite build without release if it is a fork, or it is a pull-request
-      - name: Vite Build
-        if: github.repository == 'michei69/pear-desktop' && github.event_name == 'pull_request'
-        run: |
-          pnpm build
+      # Beta builds never publish a versioned release: the installers built here
+      # are attached to the rolling `beta` release by the publish-beta job below.
+      # One electron-builder pass per platform, so every target lands in pack/.
+      - name: Build on Mac
+        if: startsWith(matrix.os, 'macOS')
+        run: pnpm beta:mac
 
-      # Build and release if it's the main repository and is not pull-request
-      - name: Build and release on Mac
-        if: startsWith(matrix.os, 'macOS') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm release:mac
-
-      - name: Build and release on Linux
-        if: startsWith(matrix.os, 'ubuntu') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build on Linux
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo snap install snapcraft --classic
           sudo apt update
@@ -73,17 +69,14 @@ jobs:
           sudo flatpak install -y flathub org.freedesktop.Platform/aarch64/24.08
           sudo flatpak install -y flathub org.freedesktop.Sdk/aarch64/24.08
           sudo flatpak install -y flathub org.electronjs.Electron2.BaseApp/aarch64/24.08
-          pnpm release:linux
+          pnpm beta:linux
 
-      - name: Build and release on Windows
-        if: startsWith(matrix.os, 'windows') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm release:win
+      - name: Build on Windows
+        if: startsWith(matrix.os, 'windows')
+        run: pnpm beta:win
 
       - name: Upload macOS artifacts
-        if: startsWith(matrix.os, 'macOS') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
+        if: startsWith(matrix.os, 'macOS')
         uses: actions/upload-artifact@v4
         with:
           name: pear-desktop-macos
@@ -92,7 +85,7 @@ jobs:
             pack/*.dmg.blockmap
 
       - name: Upload Linux artifacts
-        if: startsWith(matrix.os, 'ubuntu') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
+        if: startsWith(matrix.os, 'ubuntu')
         uses: actions/upload-artifact@v4
         with:
           name: pear-desktop-linux
@@ -106,7 +99,7 @@ jobs:
             pack/*.tar.gz
 
       - name: Upload Windows artifacts
-        if: startsWith(matrix.os, 'windows') && (github.repository == 'michei69/pear-desktop' && github.event_name != 'pull_request')
+        if: startsWith(matrix.os, 'windows')
         uses: actions/upload-artifact@v4
         with:
           name: pear-desktop-windows
@@ -114,15 +107,6 @@ jobs:
             pack/*.exe
             pack/nsis-web/*.nsis.7z
             pack/nsis-web/*.exe
-
-      # disabled temporarily
-      - name: Test
-        if: github.repository == ''
-        uses: coactions/setup-xvfb@v1
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-        with:
-          run: pnpm test:debug
 
   publish-beta:
     name: Publish beta pre-release

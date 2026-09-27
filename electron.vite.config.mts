@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +25,24 @@ const resolveAlias = {
   '@assets': resolve(__dirname, './assets'),
 };
 
+// Baked into the main bundle for the About window (src/app-info.ts). CI sets both;
+// locally the channel stays unbaked (dev) and the commit comes from the checkout.
+const gitCommit = () => {
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return '';
+  }
+};
+const buildInfo = {
+  __PEAR_CHANNEL__: JSON.stringify(process.env.PEAR_CHANNEL?.trim() || 'dev'),
+  __PEAR_COMMIT__: JSON.stringify(
+    (process.env.PEAR_COMMIT?.trim() || gitCommit()).slice(0, 7),
+  ),
+};
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
@@ -40,6 +59,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __dirname: 'import.meta.dirname',
       __filename: 'import.meta.filename',
+      ...buildInfo,
     },
     build: {
       lib: {

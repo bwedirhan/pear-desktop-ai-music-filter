@@ -9,6 +9,7 @@ import {
 } from 'electron';
 import electronUpdater from 'electron-updater';
 
+import { buildLabel, copyright } from '@/app-info';
 import * as config from '@/config';
 import { t } from '@/i18n';
 import { restart } from '@/providers/app-controls';
@@ -205,6 +206,8 @@ export const backend = createBackend<
       return {
         name: app.getName(),
         version: app.getVersion(),
+        build: buildLabel(),
+        copyright,
         platform: process.platform,
         arch: process.arch,
         osVersion: `${os.type()} ${os.release()}`,

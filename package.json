@@ -14,6 +14,13 @@
     "email": "th-ch@users.noreply.github.com",
     "url": "https://github.com/pear-devs/pear-desktop"
   },
+  "contributors": [
+    {
+      "name": "Mikey",
+      "email": "76266972+michei69@users.noreply.github.com",
+      "url": "https://github.com/michei69/pear-desktop"
+    }
+  ],
   "scripts": {
     "postinstall": "pnpm install-electron",
     "test": "pnpm playwright test",
@@ -38,6 +45,9 @@
     "format": "pnpm oxfmt --write src",
     "format:check": "pnpm oxfmt --check src",
     "changelog": "pnpm dlx auto-changelog",
+    "beta:linux": "pnpm clean && pnpm build && pnpm electron-builder --linux -p never",
+    "beta:mac": "pnpm clean && pnpm build && pnpm electron-builder --mac -p never",
+    "beta:win": "pnpm clean && pnpm build && pnpm electron-builder --win -p never",
     "release:linux": "pnpm clean && pnpm build && pnpm electron-builder --linux -p always -c.snap.publish=github",
     "release:mac": "pnpm clean && pnpm build && pnpm electron-builder --mac -p always",
     "release:win": "pnpm clean && pnpm build && pnpm electron-builder --win -p always",

@@ -5,14 +5,22 @@ on:
 
 env:
   NODE_VERSION: "24.x"
+  # Baked into the build and shown in the About window (src/app-info.ts).
+  PEAR_CHANNEL: stable
+  PEAR_COMMIT: ${{ github.sha }}
 
 jobs:
-  release:
+  build:
+    name: Release build
+    if: github.repository == 'michei69/pear-desktop' && github.ref == 'refs/heads/master'
     permissions:
       contents: write
-    runs-on: ubuntu-latest
-    name: Release YouTube Music
-    if: github.repository == 'michei69/pear-desktop' && github.ref == 'refs/heads/master'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ macos-26, ubuntu-latest, windows-latest ]
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -39,6 +47,63 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # `-p always` uploads the installers and the updater metadata to the
+      # versioned release, which stays a draft until the publish job below.
+      - name: Build and release on Mac
+        if: startsWith(matrix.os, 'macOS')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm release:mac
+
+      - name: Build and release on Linux
+        if: startsWith(matrix.os, 'ubuntu')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo snap install snapcraft --classic
+          sudo apt update
+          sudo apt install -y flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub org.freedesktop.Platform/x86_64/24.08
+          sudo flatpak install -y flathub org.freedesktop.Sdk/x86_64/24.08
+          sudo flatpak install -y flathub org.electronjs.Electron2.BaseApp/x86_64/24.08
+          sudo flatpak install -y flathub org.freedesktop.Platform/aarch64/24.08
+          sudo flatpak install -y flathub org.freedesktop.Sdk/aarch64/24.08
+          sudo flatpak install -y flathub org.electronjs.Electron2.BaseApp/aarch64/24.08
+          pnpm release:linux
+
+      - name: Build and release on Windows
+        if: startsWith(matrix.os, 'windows')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm release:win
+
+  publish:
+    name: Publish release
+    needs: build
+    if: github.repository == 'michei69/pear-desktop' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 11
+          run_install: false
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Get version
         run: |

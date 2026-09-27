@@ -1367,6 +1367,7 @@
       "tagline": "A feature-rich desktop app for YouTube Music",
       "versions": "Versions",
       "version-app": "App",
+      "version-build": "Build",
       "version-electron": "Electron",
       "version-chromium": "Chromium",
       "version-node": "Node.js",

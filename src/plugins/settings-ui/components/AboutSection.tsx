@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js';
 
-import { t } from '@/i18n';
+import { APPLICATION_NAME, t } from '@/i18n';
 
 import { Icon } from './Icon';
 
@@ -72,6 +72,10 @@ export const AboutSection = (props: {
         value: meta ? `v${meta.version}` : '…',
       },
       {
+        label: t('settings-ui.about.version-build'),
+        value: meta?.build ?? '…',
+      },
+      {
         label: t('settings-ui.about.version-electron'),
         value: meta?.versions.electron ?? '…',
       },
@@ -113,9 +117,12 @@ export const AboutSection = (props: {
     <div class="sui-about">
       <div class="sui-about__header">
         <img alt="" class="sui-about__logo" src={logo()} />
-        <div class="sui-about__name">Pear Desktop</div>
+        <div class="sui-about__name">{APPLICATION_NAME}</div>
         <Show when={props.meta}>
-          <div class="sui-about__version">v{props.meta!.version}</div>
+          {/* Full build string here, the App and Build rows below stay separate. */}
+          <div class="sui-about__version">
+            {`v${props.meta!.version} ${props.meta!.build}`}
+          </div>
         </Show>
         <div class="sui-about__tagline">{t('settings-ui.about.tagline')}</div>
       </div>
@@ -187,6 +194,10 @@ export const AboutSection = (props: {
           </button>
         </div>
       </div>
+
+      <Show when={props.meta?.copyright}>
+        <div class="sui-about__copyright">{props.meta!.copyright}</div>
+      </Show>
     </div>
   );
 };

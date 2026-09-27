@@ -17,6 +17,10 @@ export type PluginConfigMap = Record<
 export interface AppMeta {
   name: string;
   version: string;
+  /** Channel and commit, e.g. `stable` or `beta 1a2b3c4`. */
+  build: string;
+  /** One line per copyright holder. */
+  copyright: string;
   platform: string;
   arch: string;
   osVersion: string;

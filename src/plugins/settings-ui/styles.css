@@ -902,6 +902,13 @@
   align-items: center;
   gap: 8px;
 }
+.sui-about__copyright {
+  white-space: pre-line;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--sui-on-surface-variant);
+}
 /* ---- scrollbars inside the modal ---- */
 .sui-nav::-webkit-scrollbar,
 .sui-body::-webkit-scrollbar {

@@ -20,7 +20,7 @@ export const buildDebugInfo = (meta: AppMeta, plugins: string[]): string => {
   const driver = meta.gpu.driver ? ` (driver ${meta.gpu.driver})` : '';
 
   const lines = [
-    `${meta.name} v${meta.version}`,
+    `${meta.name} v${meta.version} (${meta.build})`,
     `Platform: ${meta.platform} (${meta.arch}), ${meta.osVersion}`,
     `Electron: ${meta.versions.electron} · Chromium: ${meta.versions.chrome} · Node: ${meta.versions.node}`,
     `CPU: ${meta.cpu.model} (${meta.cpu.threads} threads)`,

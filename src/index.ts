@@ -30,6 +30,7 @@ import { parse } from 'node-html-parser';
 import { languageResources } from 'virtual:i18n';
 import { allPlugins, mainPlugins } from 'virtual:plugins';
 
+import { buildLabel, copyright } from '@/app-info';
 import * as config from '@/config';
 import { APPLICATION_NAME, loadI18n, setLanguage, t } from '@/i18n';
 import {
@@ -292,11 +293,12 @@ const icon = windowIconPath();
 // Without this, Electron's default About panel shows the raw app id instead of a proper name, and no icon.
 app.setAboutPanelOptions({
   applicationName: APPLICATION_NAME,
-  applicationVersion: app.getVersion(),
-  version: app.getVersion(),
+  // Channel and commit ride along here: `version` is macOS-only, and GTK prints
+  // nothing but this field (macOS prefixes it with "Version ").
+  applicationVersion: `v${app.getVersion()} ${buildLabel()}`,
   iconPath: appIconPath(),
-  copyright: `Copyright (c) ${packageJson.author.name} <${packageJson.author.email}> (${packageJson.author.url})`,
-  website: packageJson.author.url,
+  copyright,
+  website: `https://github.com/${packageJson.repository}`,
 });
 
 function onClosed() {
