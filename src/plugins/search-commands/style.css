@@ -1,0 +1,14 @@
+/**
+ * YTM's `ytmusic-search-suggestion` rows have a title slot but no description
+ * slot, so this rides along inside the row. `margin-left: auto` puts it on the
+ * right when the row is a flex container, which it is for the list-item
+ * renderers this shares its layout with; otherwise it wraps below the title.
+ */
+ytmusic-search-suggestion .pcmd-desc {
+  flex: none;
+  margin-left: auto;
+  padding-right: 12px;
+  font-size: 12px;
+  color: var(--yt-spec-text-secondary, #aaa);
+  text-overflow: ellipsis;
+}

@@ -957,6 +957,14 @@
         "musicbrainz-email-description": "Used as contact info for the MusicBrainz API; required for MusicBrainz metadata correction"
       }
     },
+    "search-commands": {
+      "commands": {
+        "play": "Play a video from a YouTube link or id",
+        "settings": "Open the settings"
+      },
+      "description": "Type / in the search box to run commands, with autocomplete for their arguments",
+      "name": "Search Commands"
+    },
     "seek-shortcuts": {
       "description": "Seek 5 seconds backward/forward with the left/right arrow keys",
       "name": "Seek Shortcuts"

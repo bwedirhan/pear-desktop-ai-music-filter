@@ -21,6 +21,11 @@ import {
 const [open, setOpen] = createSignal(false);
 const [closing, setClosing] = createSignal(false);
 
+/** Lets other plugins — the `/settings` search command — open the modal. */
+export const openSettings = () => {
+  setOpen(true);
+};
+
 const GUIDE_SELECTORS = ['#guide-renderer', '#mini-guide-renderer'];
 const ITEMS_SELECTOR = 'ytmusic-guide-section-renderer[is-primary] > #items';
 
