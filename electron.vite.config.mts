@@ -46,7 +46,16 @@ const buildInfo = {
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
-  const mainAndPreloadExcludes = ['electron', 'custom-electron-prompt', ...builtinModules];
+  // node-smtc is a Windows-only optional dependency, so it is not installed
+  // anywhere else. Left to the bundler, its dynamic import in src/index.ts is
+  // resolved at build time and fails the whole build on macOS/Linux; keeping it
+  // external leaves the import for the `is.windows()` guard to reach (or not).
+  const mainAndPreloadExcludes = [
+    'electron',
+    'custom-electron-prompt',
+    'node-smtc',
+    ...builtinModules,
+  ];
   const mainConfig: MainViteConfig = {
     plugins: [
       pluginLoader('backend'),
