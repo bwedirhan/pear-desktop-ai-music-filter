@@ -44,6 +44,8 @@ interface PluginMeta {
   name: string;
   description?: string;
   restartNeeded: boolean;
+  /** Always on, so its card shows settings without an enable switch. */
+  essential: boolean;
   config: Record<string, unknown>;
   groups: SettingsGroup[];
 }
@@ -93,12 +95,12 @@ export const SettingsModal = (props: {
   const [plugins] = createResource<PluginMeta[]>(async () => {
     const stubs = await allPlugins();
     return Object.entries(stubs)
-      .filter(([id]) => id !== 'settings-ui')
       .map(([id, def]) => ({
         id,
         name: def.name?.() ?? id,
         description: def.description?.(),
         restartNeeded: Boolean(def.restartNeeded),
+        essential: Boolean(def.essential),
         config: (def.config ?? { enabled: false }) as Record<string, unknown>,
         groups: def.settings
           ? filterGroupsByPlatform(toSettingsGroups(def.settings))
@@ -350,7 +352,8 @@ export const SettingsModal = (props: {
   const PluginCardView = (p: { meta: PluginMeta; groups: SettingsGroup[] }) => (
     <PluginCard
       description={p.meta.description}
-      enabled={isPluginEnabled(p.meta)}
+      enabled={p.meta.essential || isPluginEnabled(p.meta)}
+      essential={p.meta.essential}
       expanded={expanded().has(p.meta.id)}
       getValue={(key) => pluginVal(p.meta, key)}
       groups={p.groups}

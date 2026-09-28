@@ -13,6 +13,8 @@ interface PluginCardProps {
   description?: string;
   restartNeeded?: boolean;
   enabled: boolean;
+  /** Always on: the settings are still offered, without a switch to turn off. */
+  essential?: boolean;
   hasSettings: boolean;
   expanded: boolean;
   groups: SettingsGroup[];
@@ -63,13 +65,15 @@ export const PluginCard = (props: PluginCardProps) => (
         </span>
       </Show>
 
-      <div class="sui-card__switch" onClick={(e) => e.stopPropagation()}>
-        <Switch
-          checked={props.enabled}
-          label={props.name}
-          onChange={props.onToggle}
-        />
-      </div>
+      <Show when={!props.essential}>
+        <div class="sui-card__switch" onClick={(e) => e.stopPropagation()}>
+          <Switch
+            checked={props.enabled}
+            label={props.name}
+            onChange={props.onToggle}
+          />
+        </div>
+      </Show>
     </div>
 
     <Show when={props.hasSettings && props.expanded}>
