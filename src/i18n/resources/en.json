@@ -89,6 +89,7 @@
           "copy-current-url": "Copy current URL",
           "go-back": "Go back",
           "go-forward": "Go forward",
+          "open-settings": "Open Settings",
           "quit": "Exit",
           "restart": "Restart App"
         }
@@ -1389,6 +1390,10 @@
     "name": "Settings UI",
     "description": "Adds an in-app settings panel, opened from the sidebar",
     "title": "Settings",
+    "settings": {
+      "show-button": "Show the settings entry in the sidebar",
+      "show-button-description": "Turn this off to keep the sidebar clean; Settings is still under Navigation → Open Settings."
+    },
     "search-placeholder": "Search settings",
     "search-results": "Search results",
     "search-matching": "Matching “{{query}}”",

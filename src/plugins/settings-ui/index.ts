@@ -7,6 +7,8 @@ import style from './styles.css?inline';
 
 export interface SettingsUIConfig {
   enabled: boolean;
+  /** Adds the settings entry to YTM's sidebar; the menu entry works regardless. */
+  showButton: boolean;
 }
 
 export default createPlugin({
@@ -16,7 +18,16 @@ export default createPlugin({
   essential: true,
   config: {
     enabled: true,
+    showButton: true,
   } as SettingsUIConfig,
+  settings: [
+    {
+      type: 'switch',
+      key: 'showButton',
+      label: () => t('settings-ui.settings.show-button'),
+      description: () => t('settings-ui.settings.show-button-description'),
+    },
+  ],
   stylesheets: [style],
   backend,
   renderer,

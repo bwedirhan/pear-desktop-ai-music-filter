@@ -903,6 +903,14 @@ export const mainMenuTemplate = async (
           },
         },
         {
+          // The modal lives in the renderer, so it has to be asked for; the
+          // sidebar entry that used to be the way in can be switched off.
+          label: t('main.menu.navigation.submenu.open-settings'),
+          click() {
+            win.webContents.send('ytmd-sui:open');
+          },
+        },
+        {
           label: t('main.menu.navigation.submenu.restart'),
           click: restart,
         },

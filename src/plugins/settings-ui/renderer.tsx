@@ -18,11 +18,17 @@ import {
   unlistenThemesPush,
 } from './state';
 
+import type { SettingsUIConfig } from './index';
+import type { RendererContext } from '@/types/contexts';
+
 const [open, setOpen] = createSignal(false);
 const [closing, setClosing] = createSignal(false);
 
 /** Lets other plugins — the `/settings` search command — open the modal. */
 export const openSettings = () => {
+  // Also cancels a close that is still animating, so asking again reopens
+  // rather than landing on a modal already on its way out.
+  setClosing(false);
   setOpen(true);
 };
 
@@ -45,10 +51,15 @@ type GuideEntryRendererElement = HTMLElement & {
 let modalHost: HTMLElement | undefined;
 let modalDispose: (() => void) | undefined;
 let started = false;
+let config: SettingsUIConfig = { enabled: true, showButton: true };
+let ipc: RendererContext<SettingsUIConfig>['ipc'] | undefined;
+
+/** The channel `src/menu.ts` uses to open the modal from the Navigation menu. */
+const OPEN_FROM_MENU = 'ytmd-sui:open';
 
 const injectButton = (guide: HTMLElement) => {
   const items = guide.querySelector(ITEMS_SELECTOR);
-  if (!items || !started) return;
+  if (!items || !started || !config.showButton) return;
 
   const host = document.createElement(
     'ytmusic-guide-entry-renderer',
@@ -62,6 +73,27 @@ const injectButton = (guide: HTMLElement) => {
   };
   host.addEventListener('tap', () => setOpen(true));
   items.appendChild(host);
+};
+
+const removeButton = () => {
+  document
+    .querySelectorAll('.pear-settings-btn')
+    .forEach((host) => host.remove());
+};
+
+/** Adds the sidebar entry, or takes it away when the option is switched off. */
+const syncButton = () => {
+  removeButton();
+  if (!started || !config.showButton) return;
+
+  // Only one of the two guides is on the page.
+  for (const selector of GUIDE_SELECTORS) {
+    const guide = document.querySelector<HTMLElement>(selector);
+    if (guide) {
+      injectButton(guide);
+      return;
+    }
+  }
 };
 
 /** Play the exit animation, then unmount. */
@@ -97,14 +129,15 @@ const teardownUi = () => {
   unlistenStorePush();
   unlistenThemesPush();
 
+  ipc?.off(OPEN_FROM_MENU, openSettings);
+  ipc = undefined;
+
   modalDispose?.();
   modalDispose = undefined;
   modalHost?.remove();
   modalHost = undefined;
 
-  document
-    .querySelectorAll('.pear-settings-btn')
-    .forEach((host) => host.remove());
+  removeButton();
 
   setOpen(false);
   setClosing(false);
@@ -119,6 +152,13 @@ export const renderer = createRenderer({
   async start(ctx) {
     started = true;
     setIpc(ctx.ipc);
+    ipc = ctx.ipc;
+    config = await ctx.getConfig();
+
+    // The Navigation menu lives in the main process, so it reaches the modal
+    // through here.
+    ctx.ipc.on(OPEN_FROM_MENU, openSettings);
+
     await refreshStore();
     await refreshThemes();
     listenStorePush();
@@ -131,6 +171,11 @@ export const renderer = createRenderer({
       // always ends in a timeout; `injectButton` also drops a late resolve.
       waitForElement<HTMLElement>(selector).then(injectButton, () => {});
     }
+  },
+
+  onConfigChange(newConfig: SettingsUIConfig) {
+    config = newConfig;
+    syncButton();
   },
 
   stop: teardownUi,
