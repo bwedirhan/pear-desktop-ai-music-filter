@@ -6,10 +6,10 @@ import { CUSTOM_PRESET, keyLabel, presetPalette } from '@/themes/types';
 import {
   bridge,
   patchLocal,
+  selectedTheme,
   store,
   themeOverrides,
   themePalette,
-  themePreset,
   themePresetNames,
   themePresets,
 } from '../state';
@@ -37,10 +37,12 @@ export const ThemePaletteField = (_props: { ctx: CustomFieldContext }) => {
    */
   const setValue = async (key: string, value: string) => {
     const themeId = selectedId();
+    const theme = selectedTheme();
     const custom = {
       ...presetPalette(
+        theme?.palette,
         themePresets(),
-        themePreset(),
+        themePresetNames()[themeId],
         themeOverrides()[themeId] ?? {},
       ),
       [key]: value,

@@ -2,6 +2,8 @@ import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 
 import {
+  CUSTOM_PRESET,
+  defaultPreset,
   presetPalette,
   resolvePalette,
   type PearTheme,
@@ -144,7 +146,7 @@ export const unlistenThemesPush = () => {
 };
 
 /** The selected theme, or undefined while nothing is selected or loaded. */
-const selectedTheme = (): PearTheme | undefined => {
+export const selectedTheme = (): PearTheme | undefined => {
   const id = store()?.options.theme ?? '';
   return themes()?.themes.find((theme) => theme.id === id);
 };
@@ -153,17 +155,44 @@ const selectedTheme = (): PearTheme | undefined => {
 export const themeOverrides = (): Record<string, ThemePalette> =>
   (store()?.options.themeOverrides as Record<string, ThemePalette>) ?? {};
 
-/** Preset picked per theme id: a preset name, `custom`, or '' for the default. */
+/**
+ * Preset picked per theme id: a preset name, `custom`, or '' for Default. A
+ * theme the user never chose for has no entry at all, which is what lets a
+ * palette-less theme fall to its first preset.
+ */
 export const themePresetNames = (): Record<string, string> =>
   (store()?.options.themePresets as Record<string, string>) ?? {};
 
 /** Presets the selected theme offers; empty when it has none. */
 export const themePresets = (): ThemePresets => selectedTheme()?.presets ?? {};
 
-/** The selected theme's preset pick: a preset name, `custom`, or ''. */
+/**
+ * The selected theme's preset pick: a preset name, `custom`, or ''. A theme
+ * with no palette declared resolves to its first preset.
+ */
 export const themePreset = (): string => {
   const theme = selectedTheme();
-  return theme ? (themePresetNames()[theme.id] ?? '') : '';
+  if (!theme) return '';
+
+  return (
+    defaultPreset(theme.palette, theme.presets, themePresetNames()[theme.id]) ??
+    ''
+  );
+};
+
+/**
+ * The preset picker's options, in order: Default when the theme has a palette,
+ * its presets, then the palette the user edited.
+ */
+export const themePresetOptions = (): string[] => {
+  const theme = selectedTheme();
+  if (!theme) return [];
+
+  return [
+    ...(theme.palette ? [''] : []),
+    ...Object.keys(theme.presets ?? {}),
+    CUSTOM_PRESET,
+  ];
 };
 
 /** Palette of the selected theme after its preset or custom layer. */
@@ -174,8 +203,9 @@ export const themePalette = (): ThemePalette => {
   return resolvePalette(
     theme.palette,
     presetPalette(
+      theme.palette,
       theme.presets,
-      themePreset(),
+      themePresetNames()[theme.id],
       themeOverrides()[theme.id] ?? {},
     ),
   );

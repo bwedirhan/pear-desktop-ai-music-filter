@@ -266,6 +266,7 @@ export const themePaletteLayers = (): Record<string, ThemePalette> => {
     loadThemes().map((theme) => [
       theme.id,
       presetPalette(
+        theme.palette,
         theme.presets,
         selected[theme.id],
         overrides[theme.id] ?? {},
@@ -286,6 +287,7 @@ export const setThemePaletteValue = (
   const theme = loadThemes().find((entry) => entry.id === themeId);
   const overrides = getThemeOverrides();
   const custom = presetPalette(
+    theme?.palette ?? {},
     theme?.presets,
     getThemePresets()[themeId],
     overrides[themeId] ?? {},

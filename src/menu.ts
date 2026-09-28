@@ -31,7 +31,7 @@ import {
   selectTheme,
   setThemePreset,
 } from './themes/main';
-import { CUSTOM_PRESET, keyLabel } from './themes/types';
+import { CUSTOM_PRESET, defaultPreset, keyLabel } from './themes/types';
 
 import packageJson from '../package.json';
 
@@ -427,31 +427,44 @@ export const mainMenuTemplate = async (
                         (theme) => Object.keys(theme.presets ?? {}).length > 0,
                       )
                       .map((theme) => {
-                        const chosen = config.getThemePresets()[theme.id] ?? '';
+                        const chosen = defaultPreset(
+                          theme.palette,
+                          theme.presets,
+                          config.getThemePresets()[theme.id],
+                        );
+                        // A `palette` key, even an empty one, is a Default to
+                        // fall back on; without it there is none to offer, so
+                        // the first preset stands in - see `defaultPreset`.
+                        const offersDefault = theme.palette !== undefined;
                         const pick = (preset: string) => {
                           setThemePreset(theme.id, preset);
                           notifyThemesChanged(win);
                         };
+                        const presetEntries = Object.keys(
+                          theme.presets ?? {},
+                        ).map((preset) => ({
+                          label: keyLabel(preset),
+                          type: 'radio' as const,
+                          checked: chosen === preset,
+                          click: () => pick(preset),
+                        }));
 
                         return {
                           label: theme.name,
                           submenu: [
-                            {
-                              label: t(
-                                'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.default',
-                              ),
-                              type: 'radio' as const,
-                              checked: chosen === '',
-                              click: () => pick(''),
-                            },
-                            ...Object.keys(theme.presets ?? {}).map(
-                              (preset) => ({
-                                label: keyLabel(preset),
-                                type: 'radio' as const,
-                                checked: chosen === preset,
-                                click: () => pick(preset),
-                              }),
-                            ),
+                            ...(offersDefault
+                              ? [
+                                  {
+                                    label: t(
+                                      'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.default',
+                                    ),
+                                    type: 'radio' as const,
+                                    checked: chosen === '',
+                                    click: () => pick(''),
+                                  },
+                                ]
+                              : []),
+                            ...presetEntries,
                             {
                               label: t(
                                 'main.menu.options.submenu.visual-tweaks.submenu.theme.submenu.presets.custom',

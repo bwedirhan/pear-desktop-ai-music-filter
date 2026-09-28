@@ -38,7 +38,12 @@ export type PearTheme = {
   name: string;
   description?: string;
   author?: string;
-  palette: ThemePalette;
+  /**
+   * Absent when the manifest declares no `palette` at all. Such a theme has no
+   * own values for Default to fall back on, so it offers its first preset in its
+   * place; an explicit, even empty, `"palette": {}` keeps Default.
+   */
+  palette?: ThemePalette;
   presets?: ThemePresets;
   /** Concatenated contents of the manifest's css files. */
   css: string;
@@ -119,6 +124,27 @@ export const parseManifest = (raw: string): ThemeManifest | null => {
 /** Selection meaning "the palette the user edited", not a preset of the theme. */
 export const CUSTOM_PRESET = 'custom';
 
+/**
+ * The preset a stored pick resolves to. `picked` is the config entry as it is:
+ * a preset name, `custom`, '' for Default, or undefined when the user never
+ * chose for this theme.
+ *
+ * A theme whose manifest declares no `palette` has no values to fall back on,
+ * so with nothing picked its first preset stands in for Default - the picker and
+ * the menu offer that preset instead of Default. An explicit `"palette": {}`
+ * still counts as a palette, so it keeps Default. A '' pick counts as nothing
+ * picked: there is no Default to pick for such a theme in the first place.
+ */
+export const defaultPreset = (
+  palette: ThemePalette | undefined,
+  presets: ThemePresets | undefined,
+  picked: string | undefined,
+): string | undefined => {
+  if (picked || palette) return picked;
+  const [first] = Object.keys(presets ?? {});
+  return first || undefined;
+};
+
 /** `scrollbar-width` reads as `Scrollbar Width`, for a key or a preset name. */
 export const keyLabel = (key: string) =>
   key
@@ -129,19 +155,26 @@ export const keyLabel = (key: string) =>
 
 /**
  * The values a selection layers on top of a theme's own palette: a preset's
- * entries, the user's custom palette for `custom`, or nothing for '' and for a
- * name the theme does not define.
+ * entries, the user's custom palette for `custom`, or nothing for `''` and for a
+ * name the theme does not define. `picked` is the stored pick as it is, which
+ * `defaultPreset` resolves - a theme with no `palette` declared falls to its
+ * first preset until the user picks something.
  */
 export const presetPalette = (
+  palette: ThemePalette | undefined,
   presets: ThemePresets | undefined,
-  preset: string | undefined,
+  picked: string | undefined,
   custom: ThemePalette,
-): ThemePalette =>
-  preset === CUSTOM_PRESET ? custom : (preset && presets?.[preset]) || {};
+): ThemePalette => {
+  const resolved = defaultPreset(palette, presets, picked);
+  return resolved === CUSTOM_PRESET
+    ? custom
+    : (resolved && presets?.[resolved]) || {};
+};
 
 /** The layer a selection applies wins over the theme's own palette values. */
 export const resolvePalette = (
-  palette: ThemePalette,
+  palette: ThemePalette | undefined,
   overrides: ThemePalette,
 ): ThemePalette => ({ ...palette, ...overrides });
 

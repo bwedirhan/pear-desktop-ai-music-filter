@@ -9,7 +9,7 @@ import {
   store,
   themePreset,
   themePresetNames,
-  themePresets,
+  themePresetOptions,
 } from '../state';
 
 import type { CustomFieldContext } from '@/types/settings';
@@ -19,8 +19,9 @@ const themeLabel = (key: string) =>
 
 /**
  * Preset picker for the selected theme: the theme's own palette (Default), the
- * presets it ships, then the palette the user edited themselves. Changing a
- * colour in **Colors** picks Custom, so this reflects that too.
+ * presets it ships, then the palette the user edited themselves. A theme that
+ * ships no palette has no Default to offer, so its first preset takes its place.
+ * Changing a colour in **Colors** picks Custom, so this reflects that too.
  */
 export const ThemePresetField = (_props: { ctx: CustomFieldContext }) => {
   const choosePreset = async (preset: string) => {
@@ -43,17 +44,15 @@ export const ThemePresetField = (_props: { ctx: CustomFieldContext }) => {
       </span>
       <Dropdown
         onChange={(value) => choosePreset(String(value))}
-        options={[
-          { value: '', label: () => t(themeLabel('presets.default')) },
-          ...Object.keys(themePresets()).map((preset) => ({
-            value: preset,
-            label: () => keyLabel(preset),
-          })),
-          {
-            value: CUSTOM_PRESET,
-            label: () => t(themeLabel('presets.custom')),
-          },
-        ]}
+        options={themePresetOptions().map((value) => ({
+          value,
+          label: () =>
+            value === ''
+              ? t(themeLabel('presets.default'))
+              : value === CUSTOM_PRESET
+                ? t(themeLabel('presets.custom'))
+                : keyLabel(value),
+        }))}
         value={themePreset()}
       />
     </div>

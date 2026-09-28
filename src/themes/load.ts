@@ -63,9 +63,11 @@ export const readTheme = (id: string, folder: string): PearTheme | null => {
     name: manifest.name ?? id,
     description: manifest.description,
     author: manifest.author,
-    palette: manifest.palette ?? {},
-    // Absent when the manifest has none, rather than an empty record.
-    ...(manifest.presets ? { presets: manifest.presets } : {}),
+    // Absent only when the manifest declares no `palette` at all: a theme with
+    // none offers its first preset in place of Default, while `"palette": {}`
+    // still has Default to fall back on.
+    ...(manifest.palette !== undefined ? { palette: manifest.palette } : {}),
+    presets: manifest.presets,
     css: cssFiles
       .map((file) => readIfExists(join(folder, file)))
       .filter((css): css is string => css !== null)

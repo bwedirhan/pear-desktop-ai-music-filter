@@ -64,7 +64,20 @@ test('an invalid manifest is skipped and css defaults to empty', () => {
   const themes = readThemesFrom(root);
   expect(themes.map((theme) => theme.id)).toEqual(['no-css']);
   expect(themes[0].css).toBe('');
-  expect(themes[0].palette).toEqual({});
+  // Absent, not empty: a theme that declares no palette offers its presets in
+  // place of Default, while an empty one still has Default to fall back on.
+  expect(themes[0].palette).toBeUndefined();
+  expect(themes[0].presets).toBeUndefined();
+});
+
+test("an empty palette is kept, so 'palette': {} keeps its Default", () => {
+  const root = makeDir();
+  writeTheme(root, 'empty-palette', { name: 'Empty', palette: {} });
+  writeTheme(root, 'no-palette', { name: 'None' });
+
+  const [empty, none] = readThemesFrom(root);
+  expect(empty.palette).toEqual({});
+  expect(none.palette).toBeUndefined();
 });
 
 test('a missing css file is dropped without losing the theme', () => {

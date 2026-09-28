@@ -137,6 +137,22 @@ plus an **Options ▸ Visual Tweaks ▸ Theme ▸ Presets** submenu, each offeri
 }
 ```
 
+With no `palette` key at all there is no **Default** to offer, so the first
+preset takes its place and is selected until the user picks another - a
+preset-only theme therefore opens on its first preset rather than on nothing:
+
+```json
+// Offer: Example1, Example2, Custom - Example1 active
+{
+  "presets": { "example1": { "accent": "#2ecc71" }, "example2": {} }
+}
+```
+
+An explicit `"palette": {}` is a declaration, not an omission: it still offers
+**Default**, and the first preset is only reached by picking it. Use it when a
+theme is deliberately variable-free but you still want an untouched Default to
+exist as a state of its own.
+
 A preset is layered **on top of** `palette`, so it only has to list what it
 changes - and it may introduce variables the palette never had (`radius` above).
 Preset values are emitted as the same `--pear-theme-<key>` custom properties,
