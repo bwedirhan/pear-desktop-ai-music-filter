@@ -963,7 +963,13 @@
         "settings": "Open the settings"
       },
       "description": "Type / in the search box to run commands, with autocomplete for their arguments",
-      "name": "Search Commands"
+      "name": "Search Commands",
+      "settings": {
+        "open-keybind": "Open shortcut",
+        "open-keybind-description": "Electron-style accelerator, e.g. CmdOrCtrl+/ or Alt+Space",
+        "open-shortcut": "Open the search box from anywhere",
+        "open-shortcut-description": "Summons the search box already in command mode, like Spotlight. Pressing it again closes it."
+      }
     },
     "seek-shortcuts": {
       "description": "Seek 5 seconds backward/forward with the left/right arrow keys",

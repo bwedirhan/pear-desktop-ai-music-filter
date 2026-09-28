@@ -10,6 +10,11 @@ import {
   type CommandContext,
   type CommandRow,
 } from './commands';
+import {
+  defaultSearchCommandsConfig,
+  type SearchCommandsConfig,
+} from './config';
+import { matchesKeybind, parseKeybind, type Keybind } from './keybind';
 
 const TAG = '[search-commands]';
 
@@ -29,12 +34,17 @@ type Watched = {
   el: SearchBox;
   input: HTMLInputElement;
   observer: MutationObserver;
+  onBlur: () => void;
 };
 
 let box: SearchBox | undefined;
 let rows: CommandRow[] = [];
 let selected = -1;
 let watched: Watched | undefined;
+let config: SearchCommandsConfig = defaultSearchCommandsConfig;
+let openBind: Keybind | undefined = parseKeybind(
+  defaultSearchCommandsConfig.openKeybind,
+);
 
 /**
  * The search box an event came from.
@@ -63,6 +73,20 @@ const release = () => {
   rows = [];
   selected = -1;
   if (box) box.suggestionData = [];
+};
+
+/**
+ * Wipes the box after a command was consumed, so the next open does not start
+ * on the last thing that was run. `originalQuery` has to go too: YTM restores
+ * it into the input when the box closes.
+ */
+const clearBox = (el: SearchBox) => {
+  el.searchBoxInput.value = '';
+  el.hasQuery = false;
+  el.originalQuery = '';
+  el.suggestionData = [];
+  rows = [];
+  selected = -1;
 };
 
 /**
@@ -156,14 +180,13 @@ const moveSelection = (step: number) => {
 };
 
 const unwatch = () => {
-  watched?.input.removeEventListener('blur', onBlur);
-  watched?.observer.disconnect();
+  const current = watched;
+  if (!current) return;
+
+  current.input.removeEventListener('blur', current.onBlur);
+  current.observer.disconnect();
   watched = undefined;
 };
-
-function onBlur() {
-  release();
-}
 
 /**
  * Wires up the live element once we have seen it, and keeps descriptions on
@@ -174,6 +197,17 @@ const watchElement = (el: SearchBox) => {
   unwatch();
 
   const input = el.searchBoxInput;
+
+  const onBlur = () => {
+    // Clicking a suggestion row blurs the input, but the box stays open: that
+    // is a pick, not a dismissal, and releasing here would drop the rows the
+    // pick is about to look itself up in.
+    if (el.opened) return;
+
+    release();
+    exitSpotlight();
+  };
+
   input.addEventListener('blur', onBlur);
 
   const observer = new MutationObserver(() => {
@@ -181,7 +215,7 @@ const watchElement = (el: SearchBox) => {
   });
   observer.observe(el, { childList: true, subtree: true });
 
-  watched = { el, input, observer };
+  watched = { el, input, observer, onBlur };
 };
 
 /** Remembers the element the event came from, and wires it up once. */
@@ -200,10 +234,12 @@ const markCommandLine = (el: SearchBox) => {
   el.originalQuery = value;
 };
 
-const context = (): CommandContext => ({
+const context = (onInsert?: () => void): CommandContext => ({
   insert: (text) => {
     const el = box;
     if (!el) return;
+
+    onInsert?.();
 
     const { searchBoxInput } = el;
     searchBoxInput.value = text;
@@ -267,6 +303,245 @@ const onDocumentInput = (event: Event) => {
   render();
 };
 
+const findSearchBox = (): SearchBox | undefined =>
+  document.querySelector<SearchBox>('ytmusic-nav-bar ytmusic-search-box') ??
+  document.querySelector<SearchBox>('ytmusic-search-box') ??
+  undefined;
+
+/** Width of the floating field, and how far down the viewport it sits. */
+const SPOTLIGHT_WIDTH = 680;
+const SPOTLIGHT_TOP = 0.22;
+/** One below the box's own `z-index`, which the stylesheet sets. */
+const SCRIM_Z = 2147482000;
+
+type Lifted = {
+  el: HTMLElement;
+  /** We had to give it `position: relative` for `z-index` to apply. */
+  positioned: boolean;
+  zIndex: string;
+  zPriority: string;
+};
+
+let scrim: HTMLElement | undefined;
+let spotlightEl: SearchBox | undefined;
+let containingBlock: HTMLElement | undefined;
+let lifted: Lifted[] = [];
+
+/**
+ * The ancestor `position: fixed` actually resolves against. A transform, a
+ * filter or `will-change` makes an element a containing block for fixed
+ * descendants, and the box is nested inside one, so viewport coordinates would
+ * land it in the wrong place.
+ */
+const fixedContainingBlock = (el: SearchBox): HTMLElement | undefined => {
+  for (
+    let node = el.parentElement;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    const style = getComputedStyle(node);
+
+    if (
+      style.transform !== 'none' ||
+      style.filter !== 'none' ||
+      style.backdropFilter !== 'none' ||
+      style.perspective !== 'none' ||
+      style.contain !== 'none' ||
+      /transform|filter|perspective/.test(style.willChange)
+    ) {
+      return node;
+    }
+  }
+
+  return undefined;
+};
+
+/** Does this element paint as its own stacking context? */
+const isStackingContext = (style: CSSStyleDeclaration): boolean =>
+  (style.position !== 'static' && style.zIndex !== 'auto') ||
+  style.transform !== 'none' ||
+  style.filter !== 'none' ||
+  style.backdropFilter !== 'none' ||
+  style.perspective !== 'none' ||
+  style.opacity !== '1' ||
+  style.isolation === 'isolate' ||
+  style.contain !== 'none' ||
+  /transform|filter|perspective|opacity/.test(style.willChange);
+
+/**
+ * The scrim lives in the root stacking context, so any context the box is
+ * nested inside would paint below it. Raise each one on the way out; the first
+ * ancestor that is not a context is where the z-index lands in the root and
+ * wins, so the walk stops there.
+ */
+const liftAboveScrim = (el: SearchBox): Lifted[] => {
+  const raised: Lifted[] = [];
+
+  for (
+    let node = el.parentElement;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    const style = getComputedStyle(node);
+    if (!isStackingContext(style)) break;
+
+    raised.push({
+      el: node,
+      positioned: style.position === 'static',
+      zIndex: node.style.zIndex,
+      zPriority: node.style.getPropertyPriority('z-index'),
+    });
+
+    if (style.position === 'static') {
+      node.style.setProperty('position', 'relative');
+    }
+    node.style.setProperty('z-index', String(SCRIM_Z + 1), 'important');
+  }
+
+  return raised;
+};
+
+const placeSpotlight = (el: SearchBox) => {
+  const width = Math.min(SPOTLIGHT_WIDTH, Math.round(window.innerWidth * 0.88));
+  const frame = containingBlock?.getBoundingClientRect();
+
+  el.style.setProperty(
+    '--pear-spotlight-left',
+    `${Math.round((window.innerWidth - width) / 2) - (frame?.left ?? 0)}px`,
+  );
+  el.style.setProperty(
+    '--pear-spotlight-top',
+    `${Math.round(window.innerHeight * SPOTLIGHT_TOP) - (frame?.top ?? 0)}px`,
+  );
+  el.style.setProperty('--pear-spotlight-width', `${width}px`);
+};
+
+const onSpotlightResize = () => {
+  if (spotlightEl) placeSpotlight(spotlightEl);
+};
+
+const exitSpotlight = () => {
+  const el = spotlightEl;
+  if (!el) return;
+
+  window.removeEventListener('resize', onSpotlightResize);
+  el.classList.remove('pear-spotlight');
+  spotlightEl = undefined;
+
+  for (const entry of lifted) {
+    if (entry.positioned) entry.el.style.removeProperty('position');
+    entry.el.style.removeProperty('z-index');
+    if (entry.zIndex) {
+      entry.el.style.setProperty('z-index', entry.zIndex, entry.zPriority);
+    }
+  }
+  lifted = [];
+  containingBlock = undefined;
+
+  scrim?.removeAttribute('data-open');
+
+  // Dismissing the overlay discards the command line with it.
+  clearBox(el);
+
+  log('spotlight: off');
+};
+
+const dismissSpotlight = () => {
+  if (box) box.opened = false;
+  exitSpotlight();
+};
+
+const enterSpotlight = (el: SearchBox) => {
+  if (!scrim) {
+    scrim = document.createElement('div');
+    scrim.id = 'pear-spotlight-scrim';
+    // Clicking away is how Spotlight dismisses, and YTM only watches for taps
+    // on its own elements, so the scrim has to close it itself.
+    scrim.addEventListener('mousedown', dismissSpotlight);
+    document.body.append(scrim);
+  }
+
+  containingBlock = fixedContainingBlock(el);
+  lifted = liftAboveScrim(el);
+  placeSpotlight(el);
+
+  el.classList.add('pear-spotlight');
+  scrim.setAttribute('data-open', '');
+  spotlightEl = el;
+  window.addEventListener('resize', onSpotlightResize);
+
+  log(
+    'spotlight: on; fixed resolves against',
+    containingBlock ? `<${containingBlock.localName}>` : 'the viewport',
+    '; lifted',
+    lifted.map((entry) => `<${entry.el.localName}>`).join(' ') || 'nothing',
+  );
+
+  // Z-order cannot be read off the source, so probe what actually ends up on
+  // top instead of trusting the cascade.
+  const rect = el.getBoundingClientRect();
+  const probe = document.elementFromPoint(
+    rect.left + rect.width / 2,
+    rect.top + rect.height / 2,
+  );
+  log(
+    'spotlight: box is',
+    probe?.closest('ytmusic-search-box')
+      ? 'above the scrim'
+      : `covered by ${probe?.id || probe?.tagName || 'nothing'}`,
+  );
+};
+
+/**
+ * Spotlight-style summon: float the box into the middle of the screen over a
+ * dimmed page, already in command mode, so the list is there to filter straight
+ * away. Pressing the shortcut again closes it.
+ */
+const openSearchBox = () => {
+  const el = findSearchBox();
+
+  if (!el) {
+    log('shortcut: no search box on the page');
+    return;
+  }
+
+  track(el);
+
+  if (el.opened && isCommandLine(el.searchBoxInput.value)) {
+    log('shortcut: closing the command box');
+    dismissSpotlight();
+    return;
+  }
+
+  enterSpotlight(el);
+
+  el.searchBoxInput.value = '/';
+  // YTM's own open path: `openedChanged` focuses the input for us.
+  el.opened = true;
+  el.searchBoxInput.setSelectionRange(1, 1);
+  markCommandLine(el);
+  render();
+
+  log('shortcut: opened the command box');
+};
+
+const onOpenShortcut = (event: KeyboardEvent) => {
+  if (!openBind || event.repeat || !matchesKeybind(openBind, event)) return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  openSearchBox();
+};
+
+const applyConfig = (next: SearchCommandsConfig) => {
+  config = next;
+  openBind = next.openShortcut ? parseKeybind(next.openKeybind) : undefined;
+
+  if (next.openShortcut && !openBind) {
+    log('cannot parse the open keybind:', next.openKeybind);
+  }
+};
+
 const onDocumentKey = (event: KeyboardEvent) => {
   const el = boxFrom(event);
   if (!el || !isCommandLine(el.searchBoxInput.value)) return;
@@ -302,8 +577,42 @@ const onDocumentKey = (event: KeyboardEvent) => {
       .filter((arg) => arg !== '');
 
     log('enter: running', `/${name}`, 'with args', args);
-    command?.run(args, context());
-    el.opened = false;
+
+    // A command that writes back into the box — a corrected argument, a
+    // follow-up prompt — has not consumed the line, so leave it for editing.
+    let inserted = false;
+    command?.run(
+      args,
+      context(() => {
+        inserted = true;
+      }),
+    );
+
+    if (!inserted) {
+      // `clearBox` rather than leaving it to `dismissSpotlight`: a command run
+      // without the overlay should still leave the box empty.
+      clearBox(el);
+      dismissSpotlight();
+    }
+    return;
+  }
+
+  // Tab completes: the highlighted row, or the first one when nothing has been
+  // arrowed to. The event is swallowed either way, so focus cannot leave the
+  // box in the middle of a command line — YTM otherwise uses Tab to cycle
+  // between the search, clear and guide buttons.
+  if (event.key === 'Tab' && !event.shiftKey) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (event.type !== 'keydown') return;
+
+    const picked = rows[selected] ?? rows[0];
+    if (!picked) return;
+
+    track(el);
+    log('tab: accepting row', picked.text);
+    accept(picked);
     return;
   }
 
@@ -319,6 +628,7 @@ const onDocumentKey = (event: KeyboardEvent) => {
 
 const LISTENERS: Array<[string, EventListener]> = [
   ['input', onDocumentInput as EventListener],
+  ['keydown', onOpenShortcut as EventListener],
   ['keydown', onDocumentKey as EventListener],
   ['keypress', onDocumentKey as EventListener],
   ['ytmusic-suggestion-activated', onSuggestionActivated],
@@ -327,7 +637,7 @@ const LISTENERS: Array<[string, EventListener]> = [
 export const renderer = createRenderer({
   unregisterCommands: null as (() => void) | null,
 
-  start(ctx) {
+  async start(ctx) {
     log('renderer start');
 
     this.unregisterCommands = registerBuiltinCommands(ctx);
@@ -341,6 +651,19 @@ export const renderer = createRenderer({
     }
 
     log('listening for "/" in the search box');
+
+    // Registered above already, so a slow config round-trip cannot leave the
+    // box unhooked; this only settles which shortcut opens it.
+    applyConfig(await ctx.getConfig());
+    log(
+      'open shortcut:',
+      config.openShortcut ? config.openKeybind || '(none)' : 'off',
+    );
+  },
+
+  onConfigChange(newConfig: SearchCommandsConfig) {
+    log('config changed:', newConfig);
+    applyConfig(newConfig);
   },
 
   stop() {
@@ -354,7 +677,10 @@ export const renderer = createRenderer({
     this.unregisterCommands = null;
 
     release();
+    exitSpotlight();
     unwatch();
+    scrim?.remove();
+    scrim = undefined;
     box = undefined;
   },
 });
