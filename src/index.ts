@@ -45,6 +45,7 @@ import { defaultAuthProxyConfig } from '@/plugins/auth-proxy-adapter/config';
 import { injectCSS } from '@/plugins/utils/main';
 import { restart, setupAppControls } from '@/providers/app-controls';
 import { appIconPath, windowIconPath } from '@/providers/app-icon';
+import { classifyLink } from '@/providers/external-links';
 import {
   APP_PROTOCOL,
   handleProtocol,
@@ -518,6 +519,46 @@ function initTheme(win: BrowserWindow) {
   });
 }
 
+/** Hands a link to the desktop; a scheme nothing handles is dropped. */
+const openExternally = (url: string) => {
+  shell.openExternal(url).catch(() => {});
+};
+
+/**
+ * Keeps Google/YouTube links in the app and sends the rest to the browser.
+ * Chromium opens `target="_blank"` links as windows and plain ones in place,
+ * so both routes are covered, and the redirect one as well: YouTube's
+ * outbound links bounce through its own host before leaving.
+ *
+ * Applied to popups too, so a link on a page that is itself in a popup
+ * window behaves the same.
+ */
+function interceptExternalLinks(win: BrowserWindow) {
+  const { webContents } = win;
+
+  const route = (event: Electron.Event, url: string) => {
+    const target = classifyLink(url, config.get('url'));
+
+    if (target === 'in-app') return;
+
+    event.preventDefault();
+    if (target === 'external') openExternally(url);
+  };
+
+  webContents.setWindowOpenHandler(({ url }) => {
+    const target = classifyLink(url, config.get('url'));
+
+    if (target === 'in-app') return { action: 'allow' };
+
+    if (target === 'external') openExternally(url);
+    return { action: 'deny' };
+  });
+
+  webContents.on('will-navigate', (event) => route(event, event.url));
+  webContents.on('will-redirect', (event) => route(event, event.url));
+  webContents.on('did-create-window', (popup) => interceptExternalLinks(popup));
+}
+
 async function createMainWindow() {
   const windowSize = config.get('window-size');
   const windowMaximized = config.get('window-maximized');
@@ -570,6 +611,8 @@ async function createMainWindow() {
   };
 
   const win = new BrowserWindow(electronWindowSettings);
+
+  interceptExternalLinks(win);
 
   await initHook(win);
   initTheme(win);
