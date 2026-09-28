@@ -1392,7 +1392,9 @@
     "title": "Settings",
     "settings": {
       "show-button": "Show the settings entry in the sidebar",
-      "show-button-description": "Turn this off to keep the sidebar clean; Settings is still under Navigation → Open Settings."
+      "show-button-description": "Turn this off to keep the sidebar clean; Settings is still under Navigation → Open Settings.",
+      "separate-window": "Always open Settings in a separate window",
+      "separate-window-description": "Opens the standalone settings window, the way the tray entry does, instead of the in-app panel."
     },
     "search-placeholder": "Search settings",
     "search-results": "Search results",

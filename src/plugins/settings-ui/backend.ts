@@ -15,6 +15,7 @@ import { t } from '@/i18n';
 import { restart } from '@/providers/app-controls';
 import { setYouTubeLanguage, youtubeLanguage } from '@/providers/language-sync';
 import { applyOptionEffects } from '@/providers/option-effects';
+import { openSettingsWindow } from '@/settings-window';
 import {
   createThemeFromCssFiles,
   notifyThemesChanged,
@@ -111,6 +112,7 @@ const CHANNELS = [
   'ytmd-sui:open-themes-folder',
   'ytmd-sui:language-from-youtube',
   'ytmd-sui:language-to-youtube',
+  'ytmd-sui:open-window',
 ] as const;
 
 export const backend = createBackend<
@@ -138,6 +140,7 @@ export const backend = createBackend<
       OPEN_THEMES_FOLDER,
       LANGUAGE_FROM_YOUTUBE,
       LANGUAGE_TO_YOUTUBE,
+      OPEN_WINDOW,
     ] = CHANNELS;
 
     ipc.handle(LOAD_STORE, () => config.getStore());
@@ -310,6 +313,12 @@ export const backend = createBackend<
     ipc.handle(LANGUAGE_TO_YOUTUBE, () =>
       setYouTubeLanguage(window, config.get('options.language') ?? 'en'),
     );
+
+    // The renderer decides which presentation to use; the window itself can
+    // only be made here. Reopening focuses the existing one.
+    ipc.handle(OPEN_WINDOW, () => {
+      openSettingsWindow();
+    });
 
     this.unwatch = config.watch(() => {
       const store = config.getStore();

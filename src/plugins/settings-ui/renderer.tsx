@@ -24,8 +24,17 @@ import type { RendererContext } from '@/types/contexts';
 const [open, setOpen] = createSignal(false);
 const [closing, setClosing] = createSignal(false);
 
-/** Lets other plugins — the `/settings` search command — open the modal. */
+/**
+ * Lets other plugins — the `/settings` search command — open the settings, and
+ * the one place the separate-window option is honoured: the sidebar entry, the
+ * Navigation menu and the command all funnel through here.
+ */
 export const openSettings = () => {
+  if (config.separateWindow) {
+    ipc?.invoke(OPEN_WINDOW);
+    return;
+  }
+
   // Also cancels a close that is still animating, so asking again reopens
   // rather than landing on a modal already on its way out.
   setClosing(false);
@@ -51,11 +60,17 @@ type GuideEntryRendererElement = HTMLElement & {
 let modalHost: HTMLElement | undefined;
 let modalDispose: (() => void) | undefined;
 let started = false;
-let config: SettingsUIConfig = { enabled: true, showButton: true };
+let config: SettingsUIConfig = {
+  enabled: true,
+  showButton: true,
+  separateWindow: false,
+};
 let ipc: RendererContext<SettingsUIConfig>['ipc'] | undefined;
 
-/** The channel `src/menu.ts` uses to open the modal from the Navigation menu. */
+/** The channel `src/menu.ts` uses to open the settings from the Navigation menu. */
 const OPEN_FROM_MENU = 'ytmd-sui:open';
+/** Asks the backend for the standalone settings window. */
+const OPEN_WINDOW = 'ytmd-sui:open-window';
 
 const injectButton = (guide: HTMLElement) => {
   const items = guide.querySelector(ITEMS_SELECTOR);
@@ -71,7 +86,7 @@ const injectButton = (guide: HTMLElement) => {
     icon: { iconType: 'SETTINGS_MATERIAL' },
     formattedTitle: { runs: [{ text: t('settings-ui.title') }] },
   };
-  host.addEventListener('tap', () => setOpen(true));
+  host.addEventListener('tap', () => openSettings());
   items.appendChild(host);
 };
 

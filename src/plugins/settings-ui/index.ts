@@ -9,6 +9,8 @@ export interface SettingsUIConfig {
   enabled: boolean;
   /** Adds the settings entry to YTM's sidebar; the menu entry works regardless. */
   showButton: boolean;
+  /** Opens the standalone window instead of the in-app panel, like the tray. */
+  separateWindow: boolean;
 }
 
 export default createPlugin({
@@ -19,6 +21,7 @@ export default createPlugin({
   config: {
     enabled: true,
     showButton: true,
+    separateWindow: false,
   } as SettingsUIConfig,
   settings: [
     {
@@ -26,6 +29,12 @@ export default createPlugin({
       key: 'showButton',
       label: () => t('settings-ui.settings.show-button'),
       description: () => t('settings-ui.settings.show-button-description'),
+    },
+    {
+      type: 'switch',
+      key: 'separateWindow',
+      label: () => t('settings-ui.settings.separate-window'),
+      description: () => t('settings-ui.settings.separate-window-description'),
     },
   ],
   stylesheets: [style],
