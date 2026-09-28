@@ -11,6 +11,22 @@ import {
 import { Dynamic } from 'solid-js/web';
 
 import { t } from '@/i18n';
+import {
+  normalizeOrder,
+  type ActionField,
+  type CustomField,
+  type CustomFieldContext,
+  type FieldAccessors,
+  type MultiSelectField,
+  type NumberField,
+  type OrderableField,
+  type SelectField,
+  type SettingField,
+  type SettingOption,
+  type SettingOptions,
+  type SliderField,
+  type TextField,
+} from '@/types/settings';
 
 import {
   CheckGroup,
@@ -24,21 +40,6 @@ import {
 import { Icon } from './Icon';
 
 import { bridge, pickDirectory, pickFile } from '../state';
-
-import type {
-  ActionField,
-  CustomField,
-  CustomFieldContext,
-  FieldAccessors,
-  MultiSelectField,
-  NumberField,
-  SelectField,
-  SettingField,
-  SettingOption,
-  SettingOptions,
-  SliderField,
-  TextField,
-} from '@/types/settings';
 
 interface SettingsFieldProps {
   field: SettingField;
@@ -255,6 +256,61 @@ const MultiSelectControl = (p: {
   );
 };
 
+const OrderableControl = (p: {
+  field: OrderableField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) => {
+  const { options } = useResolvedOptions(() => p.field);
+  // Rows come from the stored order, so it survives a plugin adding options.
+  const rows = () =>
+    normalizeOrder(
+      p.value as readonly unknown[] | undefined,
+      options(),
+      (option) => option.value,
+    );
+
+  const move = (from: number, to: number) => {
+    const next = rows().map((row) => row.value);
+    // Lifted out and inserted, so moving the first entry down puts it second.
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    p.onChange(next);
+  };
+
+  return (
+    <div class="sui-field__control">
+      <div aria-label={p.field.label()} class="sui-orderable" role="list">
+        <For each={rows()}>
+          {(row, index) => (
+            <div class="sui-orderable__row" role="listitem">
+              <span class="sui-orderable__label">{row.label()}</span>
+              <button
+                aria-label={t('settings-ui.move-up')}
+                class="sui-refreshbtn sui-orderable__btn"
+                disabled={index() === 0}
+                onClick={() => move(index(), index() - 1)}
+                type="button"
+              >
+                <Icon name="chevronUp" size={18} />
+              </button>
+              <button
+                aria-label={t('settings-ui.move-down')}
+                class="sui-refreshbtn sui-orderable__btn"
+                disabled={index() === rows().length - 1}
+                onClick={() => move(index(), index() + 1)}
+                type="button"
+              >
+                <Icon name="chevronDown" size={18} />
+              </button>
+            </div>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+};
+
 /** The field's own read/write, plus the dialogs an `action` button may open. */
 const ActionControl = (p: {
   field: ActionField;
@@ -386,6 +442,14 @@ export const SettingsField = (props: SettingsFieldProps) => {
           <ActionControl
             accessors={props.accessors}
             field={field() as ActionField}
+          />
+        </Match>
+
+        <Match when={field().type === 'orderable'}>
+          <OrderableControl
+            field={field() as OrderableField}
+            onChange={props.onChange}
+            value={props.value}
           />
         </Match>
 

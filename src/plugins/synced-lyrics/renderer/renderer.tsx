@@ -18,8 +18,10 @@ import {
 } from './components';
 import { LyricsPicker } from './components/LyricsPicker';
 import { reactiveOwner } from './reactive-root';
-import { currentLyrics, hasLyricText, splitPlainLyrics } from './store';
+import { currentLyrics, splitPlainLyrics } from './store';
 import { selectors } from './utils';
+
+import { hasLyricText } from '../providers';
 
 import type { LineLyrics, SyncedLyricsPluginConfig } from '../types';
 

@@ -930,3 +930,36 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+/* ---- orderable list (arrows move an entry one place) ---- */
+.sui-orderable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sui-orderable__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--sui-outline);
+  border-radius: 8px;
+  background: var(--sui-surface-high);
+  color: var(--sui-on-surface);
+  font-size: 13px;
+}
+.sui-orderable__label {
+  flex: 1;
+  min-width: 0;
+}
+/* The refresh button, smaller and round for a row. */
+.sui-orderable__btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+.sui-orderable__btn:disabled {
+  cursor: default;
+  opacity: 0.38;
+  background: transparent;
+}

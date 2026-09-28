@@ -1,4 +1,3 @@
-/* oxlint-disable @stylistic/no-mixed-operators */
 import { IconCheckCircle } from '@mdui/icons/check-circle.js';
 import { IconChevronLeft } from '@mdui/icons/chevron-left.js';
 import { IconChevronRight } from '@mdui/icons/chevron-right.js';
@@ -24,15 +23,19 @@ import {
 import { Portal } from 'solid-js/web';
 import * as z from 'zod';
 
+import { t } from '@/i18n';
 import { getSongInfo } from '@/providers/song-info-front';
 import { LitElementWrapper } from '@/solit';
 
 import {
+  hasLyricText,
+  pickWithStar,
   type ProviderName,
-  ProviderNames,
-  providerNames,
   ProviderNameSchema,
+  providerNames,
   type ProviderState,
+  resolvePriority,
+  starredProviderKey,
 } from '../../providers';
 import {
   customQuery,
@@ -46,7 +49,6 @@ import { config } from '../renderer';
 import {
   clearSearchCacheForVideo,
   currentLyrics,
-  hasLyricText,
   lyricsStore,
   refreshCurrentLyrics,
   setLyricsStore,
@@ -56,58 +58,59 @@ import { isChineseTranslationTarget } from '../translation-store';
 import type { PlayerAPIEvents } from '@/types/player-api-events';
 import type { VideoDataChanged } from '@/types/video-data-changed';
 
-const LocalStorageSchema = z.object({
-  provider: ProviderNameSchema,
-});
+/** Stored shape: `{ provider }`, so entries written before the picker rewrite still load. */
+const StarredProviderSchema = z.object({ provider: ProviderNameSchema });
 
 export const providerIdx = runWithOwner(reactiveOwner, () =>
   createMemo(() => providerNames.indexOf(lyricsStore.provider)),
 )!;
 
+const pickBestProvider = (starred: ProviderName | null): ProviderName => {
+  const cfg = config();
+  return (
+    pickWithStar({
+      priority: resolvePriority(cfg?.providerPriority),
+      lyrics: lyricsStore.lyrics,
+      preferSynced: cfg?.preferSynced ?? true,
+      starred,
+      usePriorityList: cfg?.usePriorityList ?? false,
+      wantsOfficialTranslation: Boolean(
+        cfg?.translation.enabled &&
+        isChineseTranslationTarget(cfg.translation.targetLanguage),
+      ),
+    }) ?? providerNames[0]
+  );
+};
+
+/** A hand-edited or stale entry must not pin the picker to a provider that is gone. */
+const readStarredProvider = (videoId: string): ProviderName | null => {
+  const stored = localStorage.getItem(starredProviderKey(videoId));
+  if (!stored) return null;
+
+  try {
+    const parsed = StarredProviderSchema.safeParse(JSON.parse(stored));
+    return parsed.success ? parsed.data.provider : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStarredProvider = (
+  videoId: string,
+  provider: ProviderName | null,
+) => {
+  if (provider === null) localStorage.removeItem(starredProviderKey(videoId));
+  else
+    localStorage.setItem(
+      starredProviderKey(videoId),
+      JSON.stringify({ provider }),
+    );
+};
+
 const shouldSwitchProvider = (providerData: ProviderState) => {
   if (providerData.state === 'error') return true;
   if (providerData.state === 'fetching') return true;
   return providerData.state === 'done' && !hasLyricText(providerData.data);
-};
-
-const providerBias = (p: ProviderName) => {
-  const state = lyricsStore.lyrics[p];
-  const data = state.data;
-  const hasSyncedText = data?.lines?.some((line) => line.text.trim()) ?? false;
-  const hasPlainText = Boolean(data?.lyrics?.trim());
-  const hasOfficialTranslation = Boolean(
-    data?.translation?.lines?.some((line) => line.text.trim()) ||
-    data?.translation?.lyrics?.trim(),
-  );
-  const cfg = config();
-  const wantsOfficialChineseTranslation = Boolean(
-    cfg?.translation.enabled &&
-    isChineseTranslationTarget(cfg.translation.targetLanguage),
-  );
-
-  return (
-    (state.state === 'done' ? 1 : -1) +
-    (hasLyricText(data) ? 2 : -2) +
-    (hasOfficialTranslation && wantsOfficialChineseTranslation ? 3 : 0) +
-    (hasSyncedText ? 2 : -1) +
-    (hasSyncedText && p === ProviderNames.YTMusic ? 1 : 0) +
-    (hasPlainText ? 1 : -1)
-  );
-};
-
-const pickBestProvider = () => {
-  const preferred = config()?.preferredProvider;
-  if (preferred) {
-    const data = lyricsStore.lyrics[preferred].data;
-    if (hasLyricText(data)) {
-      return { provider: preferred, force: true };
-    }
-  }
-
-  const providers = Array.from(providerNames);
-  providers.sort((a, b) => providerBias(b) - providerBias(a));
-
-  return { provider: providers[0], force: false };
 };
 
 const [hasManuallySwitchedProvider, setHasManuallySwitchedProvider] =
@@ -121,55 +124,13 @@ export const LyricsPicker = (props: {
     createSignal<ProviderName | null>(null);
 
   createEffect(() => {
-    const id = videoId();
-    if (id === null) {
-      setStarredProvider(null);
-      loadCustomQueryForVideo(null);
-      return;
-    }
-
-    const key = `ytmd-sl-starred-${id}`;
-    const value = localStorage.getItem(key);
-    if (!value) {
-      setStarredProvider(null);
-    } else {
-      const parsedValue = (() => {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return null;
-        }
-      })();
-      const parseResult = LocalStorageSchema.safeParse(parsedValue);
-      if (parseResult.success) {
-        setLyricsStore('provider', parseResult.data.provider);
-        setStarredProvider(parseResult.data.provider);
-      } else {
-        setStarredProvider(null);
-      }
-    }
-
-    loadCustomQueryForVideo(id);
+    loadCustomQueryForVideo(videoId());
   });
 
-  const toggleStar = () => {
+  createEffect(() => {
     const id = videoId();
-    if (id === null) return;
-
-    const key = `ytmd-sl-starred-${id}`;
-
-    setStarredProvider((starredProvider) => {
-      if (lyricsStore.provider === starredProvider) {
-        localStorage.removeItem(key);
-        return null;
-      }
-
-      const provider = lyricsStore.provider;
-      localStorage.setItem(key, JSON.stringify({ provider }));
-
-      return provider;
-    });
-  };
+    setStarredProvider(id === null ? null : readStarredProvider(id));
+  });
 
   // Custom query modal
   const [showSearchModal, setShowSearchModal] = createSignal(false);
@@ -263,44 +224,64 @@ export const LyricsPicker = (props: {
   }
 
   createEffect(() => {
-    if (!hasManuallySwitchedProvider()) {
-      const starred = starredProvider();
-      if (starred !== null) {
-        setLyricsStore('provider', starred);
-        return;
-      }
+    // A manual pick (arrow buttons, dots) sticks for the rest of the song.
+    if (videoId() === null || hasManuallySwitchedProvider()) return;
 
-      const allProvidersFailed = providerNames.every((p) =>
-        shouldSwitchProvider(lyricsStore.lyrics[p]),
-      );
-      if (allProvidersFailed) return;
-
-      const { provider, force } = pickBestProvider();
-      if (
-        force ||
-        providerBias(lyricsStore.provider) < providerBias(provider)
-      ) {
-        setLyricsStore('provider', provider);
-      }
+    // Nothing to pick from while every provider is still fetching or errored.
+    if (
+      providerNames.every((p) => shouldSwitchProvider(lyricsStore.lyrics[p]))
+    ) {
+      return;
     }
+
+    // Re-decided on every result: providers answer in network order, so picking
+    // once would let a fast lower-priority provider beat the user's first choice.
+    const provider = pickBestProvider(starredProvider());
+    if (provider !== lyricsStore.provider) setLyricsStore('provider', provider);
   });
 
-  const next = () => {
+  /** Any manual pick sticks for the rest of the song. */
+  const chooseProvider = (provider: ProviderName) => {
     setHasManuallySwitchedProvider(true);
-    setLyricsStore('provider', (prevProvider) => {
-      const idx = providerNames.indexOf(prevProvider);
-      return providerNames[(idx + 1) % providerNames.length];
-    });
+    setLyricsStore('provider', provider);
   };
 
-  const previous = () => {
-    setHasManuallySwitchedProvider(true);
-    setLyricsStore('provider', (prevProvider) => {
-      const idx = providerNames.indexOf(prevProvider);
-      return providerNames[
-        (idx + providerNames.length - 1) % providerNames.length
-      ];
-    });
+  /**
+   * Pin the provider showing now to this song, or unpin it. Starring is an
+   * explicit override, so it also cancels a manual pick and applies at once.
+   */
+  const toggleStar = () => {
+    const id = videoId();
+    const current = lyricsStore.provider;
+    const next = starredProvider() === current ? null : current;
+
+    if (id !== null) writeStarredProvider(id, next);
+
+    setHasManuallySwitchedProvider(false);
+    setStarredProvider(next);
+  };
+
+  const isStarred = (provider: ProviderName) => starredProvider() === provider;
+
+  /** The star shows and toggles the pin for this song. */
+  const starProps = (provider: ProviderName) => ({
+    onClick: toggleStar,
+    role: 'button',
+    style: { padding: '5px' },
+    title: t(
+      isStarred(provider)
+        ? 'plugins.synced-lyrics.menu.unstar-provider.tooltip'
+        : 'plugins.synced-lyrics.menu.star-provider.tooltip',
+    ),
+  });
+
+  const step = (offset: number) => {
+    const idx = providerNames.indexOf(lyricsStore.provider);
+    chooseProvider(
+      providerNames[
+        (idx + providerNames.length + offset) % providerNames.length
+      ],
+    );
   };
 
   return (
@@ -310,9 +291,10 @@ export const LyricsPicker = (props: {
           <LitElementWrapper
             elementClass={IconChevronLeft}
             props={{
-              onClick: previous,
+              onClick: () => step(-1),
               role: 'button',
               style: { padding: '5px' },
+              title: t('plugins.synced-lyrics.menu.previous-provider.tooltip'),
             }}
           />
         </mdui-button-icon>
@@ -376,14 +358,20 @@ export const LyricsPicker = (props: {
                   class="description ytmusic-description-shelf-renderer"
                   text={{ runs: [{ text: provider() }] }}
                 />
-                <mdui-button-icon onClick={toggleStar} tabindex={-1}>
+                <mdui-button-icon tabindex={-1}>
                   <Show
                     fallback={
-                      <LitElementWrapper elementClass={IconStarBorder} />
+                      <LitElementWrapper
+                        elementClass={IconStarBorder}
+                        props={starProps(provider())}
+                      />
                     }
-                    when={starredProvider() === provider()}
+                    when={isStarred(provider())}
                   >
-                    <LitElementWrapper elementClass={IconStar} />
+                    <LitElementWrapper
+                      elementClass={IconStar}
+                      props={starProps(provider())}
+                    />
                   </Show>
                 </mdui-button-icon>
               </div>
@@ -396,7 +384,7 @@ export const LyricsPicker = (props: {
             {(_, idx) => (
               <li
                 class="lyrics-picker-dot"
-                onClick={() => setLyricsStore('provider', providerNames[idx()])}
+                onClick={() => chooseProvider(providerNames[idx()])}
                 style={{
                   background: idx() === providerIdx() ? 'white' : 'black',
                 }}
@@ -415,7 +403,9 @@ export const LyricsPicker = (props: {
                 onClick: openSearchModal,
                 role: 'button',
                 style: { padding: '5px' },
-                title: 'Custom search query',
+                title: t(
+                  'plugins.synced-lyrics.menu.custom-search-button.tooltip',
+                ),
               }}
             />
           </mdui-button-icon>
@@ -427,9 +417,10 @@ export const LyricsPicker = (props: {
           <LitElementWrapper
             elementClass={IconChevronRight}
             props={{
-              onClick: next,
+              onClick: () => step(1),
               role: 'button',
               style: { padding: '5px' },
+              title: t('plugins.synced-lyrics.menu.next-provider.tooltip'),
             }}
           />
         </mdui-button-icon>

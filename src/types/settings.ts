@@ -101,6 +101,32 @@ export interface ActionField extends SettingFieldBase {
   buttons: ActionButton[];
 }
 
+export interface OrderableField extends SettingFieldBase {
+  type: 'orderable';
+  options: SettingOptions;
+}
+
+/**
+ * `stored` first, in its own order, then every declared entry it did not name,
+ * in declared order. Unknown, stale and duplicate entries are dropped, so a
+ * list saved before an entry existed still shows it, at the end.
+ */
+export const normalizeOrder = <T>(
+  stored: readonly unknown[] | undefined,
+  declared: readonly T[],
+  valueOf: (item: T) => unknown = (item) => item,
+): T[] => {
+  const order = new Map<string, T>();
+  for (const value of Array.isArray(stored) ? stored : []) {
+    const item = declared.find(
+      (candidate) => String(valueOf(candidate)) === String(value),
+    );
+    if (item !== undefined) order.set(String(valueOf(item)), item);
+  }
+  for (const item of declared) order.set(String(valueOf(item)), item);
+  return [...order.values()];
+};
+
 export type CustomFieldContext = FieldAccessors;
 
 export interface CustomField extends SettingFieldBase {
@@ -116,6 +142,7 @@ export type SettingField =
   | MultiSelectField
   | NumberField
   | ActionField
+  | OrderableField
   | CustomField;
 
 export interface SettingsGroup {

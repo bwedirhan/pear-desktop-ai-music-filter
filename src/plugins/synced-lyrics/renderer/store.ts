@@ -18,6 +18,7 @@ import {
 
 import { LRC } from '../parsers/lrc';
 import {
+  hasLyricText,
   type ProviderName,
   providerNames,
   type ProviderState,
@@ -96,11 +97,6 @@ export const splitPlainLyrics = (lyrics: string): string[] =>
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
-
-export const hasLyricText = (data?: LyricResult | null): boolean =>
-  Boolean(
-    data?.lines?.some((line) => line.text.trim()) || data?.lyrics?.trim(),
-  );
 
 const getLyricLineTexts = (data?: LyricResult | null): string[] => {
   if (!data || !hasLyricText(data)) return [];

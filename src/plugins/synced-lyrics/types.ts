@@ -87,7 +87,18 @@ export type TranslationConfig = {
 
 export type SyncedLyricsPluginConfig = {
   enabled: boolean;
-  preferredProvider?: ProviderName;
+  /**
+   * Providers in the order they are tried, the first hit winning. Absent means
+   * the order they are declared in — see the note on the plugin's config.
+   */
+  providerPriority?: ProviderName[];
+  /**
+   * Follow `providerPriority`. Off restores the pre-priority-list behaviour:
+   * whichever provider has the best lyrics wins, the list only breaks ties.
+   */
+  usePriorityList: boolean;
+  /** Prefer time-synced lyrics over plain ones while walking the order. */
+  preferSynced: boolean;
   preciseTiming: boolean;
   showTimeCodes: boolean;
   defaultTextString: string | string[];

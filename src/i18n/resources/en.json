@@ -1014,14 +1014,6 @@
         "not-found": "⚠️ No lyrics found for this song."
       },
       "menu": {
-        "preferred-provider": {
-          "label": "Preferred Provider",
-          "tooltip": "Choose the default provider to use",
-          "none": {
-            "label": "None",
-            "tooltip": "No preferred provider"
-          }
-        },
         "default-text-string": {
           "label": "Default character between lyrics",
           "tooltip": "Choose the default character to use for the gap between lyrics"
@@ -1218,6 +1210,30 @@
         "show-custom-search-button": {
           "label": "Show custom search button",
           "tooltip": "Show a search button in the lyrics picker that lets you override the search query and artist for the current song."
+        },
+        "provider-priority": {
+          "tooltip": "Providers are tried in this order: the first one with lyrics for the current song wins. Use the arrows to reorder."
+        },
+        "prefer-synced": {
+          "tooltip": "Pick the first provider in the list with time-synced lyrics, instead of the first one with any lyrics."
+        },
+        "previous-provider": {
+          "tooltip": "Previous provider"
+        },
+        "next-provider": {
+          "tooltip": "Next provider"
+        },
+        "custom-search-button": {
+          "tooltip": "Custom search query"
+        },
+        "star-provider": {
+          "tooltip": "Always use this provider for this song, whatever the priority order says. Falls back to the normal order if it has no lyrics for the song."
+        },
+        "unstar-provider": {
+          "tooltip": "Stop pinning this provider to this song."
+        },
+        "use-priority-list": {
+          "tooltip": "Try the providers in the order below. Turn this off to let the lyrics decide instead: whichever provider has the best lyrics for the song wins."
         }
       },
       "name": "Synced Lyrics",
@@ -1241,7 +1257,10 @@
           "scale": "Scale",
           "offset": "Offset",
           "focus": "Focus"
-        }
+        },
+        "prefer-synced": "Prefer synced lyrics",
+        "provider-priority": "Provider Priority",
+        "use-priority-list": "Use priority list"
       }
     },
     "taskbar-mediacontrol": {
@@ -1368,6 +1387,8 @@
     "restart-pill": "restart",
     "restart-pill-hint": "Requires restart",
     "refresh-options": "Refresh options",
+    "move-up": "Move up",
+    "move-down": "Move down",
     "about": {
       "tagline": "A feature-rich desktop app for YouTube Music",
       "versions": "Versions",

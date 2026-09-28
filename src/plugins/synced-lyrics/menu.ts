@@ -3,7 +3,6 @@ import prompt from 'custom-electron-prompt';
 import { t } from '@/i18n';
 import promptOptions from '@/providers/prompt-options';
 
-import { providerNames } from './providers';
 import { clearCache as clearTranslationCache } from './translation/cache';
 import { normalizeGoogleTranslateHost } from './translation/providers/google-translate-host';
 
@@ -328,35 +327,6 @@ export const menu = async (
   const config = await ctx.getConfig();
 
   return [
-    {
-      label: t('plugins.synced-lyrics.menu.preferred-provider.label'),
-      toolTip: t('plugins.synced-lyrics.menu.preferred-provider.tooltip'),
-      type: 'submenu',
-      submenu: [
-        {
-          label: t('plugins.synced-lyrics.menu.preferred-provider.none.label'),
-          toolTip: t(
-            'plugins.synced-lyrics.menu.preferred-provider.none.tooltip',
-          ),
-          type: 'radio',
-          checked: config.preferredProvider === undefined,
-          click() {
-            ctx.setConfig({ preferredProvider: undefined });
-          },
-        },
-        ...providerNames.map(
-          (provider) =>
-            ({
-              label: provider,
-              type: 'radio',
-              checked: config.preferredProvider === provider,
-              click() {
-                ctx.setConfig({ preferredProvider: provider });
-              },
-            }) as const,
-        ),
-      ],
-    },
     {
       label: t('plugins.synced-lyrics.menu.precise-timing.label'),
       toolTip: t('plugins.synced-lyrics.menu.precise-timing.tooltip'),

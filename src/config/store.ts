@@ -20,6 +20,31 @@ export type IStore = InstanceType<
 >;
 
 const migrations = {
+  '>=3.12.3'(store: IStore) {
+    // Synced lyrics' single "preferred provider" became an orderable priority
+    // list, with the named provider leading it. "None" leaves the list off,
+    // which is the old "let the lyrics decide" behaviour.
+    const syncedLyricsConfig = store.get('plugins.synced-lyrics') as
+      | Record<string, unknown>
+      | undefined;
+    const preferredProvider = syncedLyricsConfig?.preferredProvider;
+    if (
+      !syncedLyricsConfig ||
+      syncedLyricsConfig.providerPriority !== undefined ||
+      preferredProvider === undefined
+    ) {
+      return;
+    }
+
+    // Retired either way, so drop it even when it held "None".
+    delete syncedLyricsConfig.preferredProvider;
+    if (typeof preferredProvider === 'string') {
+      syncedLyricsConfig.providerPriority = [preferredProvider];
+      syncedLyricsConfig.usePriorityList = true;
+    }
+
+    store.set('plugins.synced-lyrics', syncedLyricsConfig);
+  },
   '>=3.12.0'(store: IStore) {
     const blockerConfig = store.get(
       'plugins.adblocker',
