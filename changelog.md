@@ -2,7 +2,25 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [v3.12.3](https://github.com/michei69/pear-desktop/compare/v3.12.2...v3.12.3)
+
+- chore(deps): bump fast-uri from 3.1.2 to 3.1.8 [`#42`](https://github.com/michei69/pear-desktop/pull/42)
+- reimplement crossfade [`#39`](https://github.com/michei69/pear-desktop/pull/39)
+- feat(icons): sync app shortcuts with the icon option [`#27`](https://github.com/michei69/pear-desktop/pull/27)
+- feat(custom-theme): add folder-based theme engine with CLI, Tokyo Night and Catppuccin Mocha presets [`#1`](https://github.com/michei69/pear-desktop/pull/1)
+- feat: open non-Google/YouTube links in the browser [`#48`](https://github.com/michei69/pear-desktop/issues/48)
+- feat(synced-lyrics): orderable provider priority list [`#45`](https://github.com/michei69/pear-desktop/issues/45)
+- fix(synced-lyrics): render translated lines in their own direction [`#38`](https://github.com/michei69/pear-desktop/issues/38)
+- feat: build types + a few fixes regarding the about page [`#44`](https://github.com/michei69/pear-desktop/issues/44)
+- chore: remove Skip Disliked Songs [`#37`](https://github.com/michei69/pear-desktop/issues/37)
+- fix: restore window on plain relaunch when running in tray [`#32`](https://github.com/michei69/pear-desktop/issues/32)
+- feat(plugins): Settings UI [`ccdeb3e`](https://github.com/michei69/pear-desktop/commit/ccdeb3efbfcdbd1b5d8251c5fd2de097870c7029)
+- feat(themes): replace custom-theme plugin with folder-based theme engine [`6d398e6`](https://github.com/michei69/pear-desktop/commit/6d398e6cc49e4b30836300d48a7b85853b384c16)
+- refactor(crossfade): split the plugin into its parts [`d7ca9eb`](https://github.com/michei69/pear-desktop/commit/d7ca9ebf0eb604e6a31647ce17322b96dc88f0f4)
+
 #### [v3.12.2](https://github.com/michei69/pear-desktop/compare/v3.12.1...v3.12.2)
+
+> 7 September 2026
 
 - fix: show real app info in the about panel. closes #4547 [`#4547`](https://github.com/michei69/pear-desktop/issues/4547)
 - fix: harden plugin backends and correct lyric/scrobble/queue edge cases [`68771e6`](https://github.com/michei69/pear-desktop/commit/68771e627929a1dbb2968b5f2bdfeef0777bed82)
