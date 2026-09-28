@@ -127,7 +127,7 @@ export const SyncedLine = (props: SyncedLineProps) => {
           _ytAPI?.seekTo((props.line.timeInMs + 10) / 1000);
         }}
       >
-        <div class="description ytmusic-description-shelf-renderer" dir="auto">
+        <div class="description ytmusic-description-shelf-renderer">
           <yt-formatted-string
             text={{
               runs: [
@@ -153,7 +153,7 @@ export const SyncedLine = (props: SyncedLineProps) => {
             }}
             style={{ 'display': 'flex', 'flex-direction': 'column' }}
           >
-            <span>
+            <span dir="auto">
               <For each={text().split(' ')}>
                 {(word, index) => {
                   return (
@@ -180,7 +180,7 @@ export const SyncedLine = (props: SyncedLineProps) => {
                 simplifyUnicode(text()) !== simplifyUnicode(romanization())
               }
             >
-              <span class="romaji">
+              <span class="romaji" dir="auto">
                 <For each={romanization().split(' ')}>
                   {(word, index) => {
                     return (
@@ -208,7 +208,7 @@ export const SyncedLine = (props: SyncedLineProps) => {
                 simplifyUnicode(text()) !== simplifyUnicode(translation())
               }
             >
-              <span class="translation">
+              <span class="translation" dir="auto">
                 <For each={translation().split(' ')}>
                   {(word, index) => {
                     return (
