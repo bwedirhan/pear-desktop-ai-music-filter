@@ -30,10 +30,16 @@ Pear Desktop eklentileri uygulamanın kaynak kodunun içinde derlenir:
 1. `pear-devs/pear-desktop` reposunu fork'la / klonla.
 2. Bu repodan `src/plugins/skip-ai-slop/index.ts` dosyasını al.
 3. Pear Desktop checkout'unda `src/plugins/skip-ai-slop/index.ts` konumuna kopyala.
-4. `index.ts` içindeki `OWNER` sabitini kendi GitHub kullanıcı adınla değiştir (şu an `YOUR_GITHUB_USER`).
+4. Eğer kendi fork'undan kara liste kullanacaksan: `index.ts` içindeki `BLACKLIST_URL` değerini kendi repon adınla değiştir.
+
+```typescript
+const BLACKLIST_URL =
+  'https://raw.githubusercontent.com/YOUR_GITHUB_USER/pear-desktop-ai-slop-filter/main/blacklist.json';
+```
+
 5. Eklentiyi uygulamanın plugin listesine kaydet (diğer eklentilerin nasıl listelendiğine bak) ve derle.
 
-Not: Eklenti kodu uygulamayla çalıştırılarak test edilmedi; `index.ts` başındaki "VERIFY" listesine bak.
+Not: Eklenti kodu uygulamayla çalıştırılarak test edilmedi; `index.ts` başındaki "UNVERIFIED" listesine bak.
 
 ## Lisans
 Kara liste verisi: CC0-1.0. Eklenti kodu: Pear Desktop ile uyumlu olması için MIT önerilir.
