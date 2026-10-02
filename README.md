@@ -13,7 +13,7 @@
 
 [🇹🇷 Türkçe](#-türkçe) · [🇬🇧 English](#-english) · [🐛 Issue](https://github.com/bwedirhan/pear-desktop-ai-slop-filter/issues/new) · [⭐ Star](https://github.com/bwedirhan/pear-desktop-ai-slop-filter)
 
-![](x4.png)
+![Michei69](https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/assets/x4.png)
 </div>
 
 ---
