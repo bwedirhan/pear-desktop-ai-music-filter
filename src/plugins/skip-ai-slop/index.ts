@@ -1,24 +1,28 @@
 /**
- * skip-ai-slop — Pear Desktop plugin (draft)
+ * skip-ai-slop — Pear Desktop plugin (v2 draft)
  *
- * Place at: src/plugins/skip-ai-slop/index.ts inside a pear-desktop checkout
- * (plugins are built into the app; they are not loose files dropped into a folder).
+ * Copy to: src/plugins/skip-ai-slop/index.ts in a pear-desktop checkout, then
+ * register it the same way the other plugins are registered (see how
+ * src/plugins/skip-silences or sponsorblock are listed).
  *
- * VERIFY BEFORE USE (written without running against the app):
- *  1. the 'videodatachange' document event and its event.detail.name === 'dataloaded'
- *  2. api.getPlayerResponse()?.videoDetails (videoId / channelId)
- *  3. api.nextVideo()
- *  4. the config shape / context.getConfig signature in your pear-desktop version
- * Compare with src/plugins/sponsorblock and skip-silences, which use the same hooks.
+ * Plugin shape (createPlugin, config, renderer.start/stop/onPlayerApiReady)
+ * follows the "Creating a plugin" section of the pear-desktop README.
+ *
+ * STILL UNVERIFIED (could not read the real plugins' source):
+ *  - that api.getPlayerResponse() and api.nextVideo() exist on the player API object
+ *  - the exact type of `context` in renderer.start (getConfig is used as in the README's menu example)
+ * To avoid depending on app-internal event names, track changes are detected with
+ * standard <video> element events instead of app-specific custom events.
  */
 import { createPlugin } from '@/utils';
 
-const OWNER = 'YOUR_GITHUB_USER'; // TODO: set after creating the repo
-const REPO = 'pear-desktop-ai-slop-filter';
-const BLACKLIST_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/blacklist.json`;
+const BLACKLIST_URL =
+  'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
 const CACHE_KEY = 'skip-ai-slop:blacklist';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const SUPPORTED_SCHEMA = 1;
+const MAX_SKIPS = 5; // safety: stop skipping if this many skips happen...
+const SKIP_WINDOW_MS = 10_000; // ...within this window (e.g. whole queue is blacklisted)
 
 type Entry = { name?: string; title?: string; reason?: string; added_at?: string };
 type Blacklist = {
@@ -27,7 +31,6 @@ type Blacklist = {
   channels: Record<string, Entry>;
   tracks: Record<string, Entry>;
 };
-
 type Config = {
   enabled: boolean;
   userAllow: string[]; // channelIds / videoIds that are never skipped
@@ -38,35 +41,35 @@ const defaultConfig: Config = { enabled: false, userAllow: [], userBlock: [] };
 
 let list: Blacklist | null = null;
 let config: Config = defaultConfig;
-let lastSkippedId: string | null = null;
-
+let api: any = null;
+let active = false;
+let video: HTMLVideoElement | null = null;
+let lastCheckedId: string | null = null;
+let recentSkips: number[] = [];
 
 const refreshList = async () => {
-  let cached: { data: Blacklist; fresh: boolean } | null = null;
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (raw) {
       const { data, ts } = JSON.parse(raw);
-      cached = { data, fresh: Date.now() - ts < CACHE_TTL_MS };
+      if (data?.version === SUPPORTED_SCHEMA) list = data;
+      if (Date.now() - ts < CACHE_TTL_MS) return; // cache still fresh
     }
   } catch {
-    cached = null;
+    // ignore corrupt cache
   }
-  if (cached) list = cached.data;
-  if (cached?.fresh) return;
-
   try {
     const res = await fetch(BLACKLIST_URL, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as Blacklist;
     if (data.version !== SUPPORTED_SCHEMA) {
-      console.warn('[skip-ai-slop] unsupported blacklist schema', data.version);
+      console.warn('[skip-ai-slop] unsupported schema version', data.version);
       return;
     }
     list = data;
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
   } catch (err) {
-    console.warn('[skip-ai-slop] refresh failed, using cache if any', err);
+    console.warn('[skip-ai-slop] refresh failed; using cached list if any', err);
   }
 };
 
@@ -80,44 +83,70 @@ const reasonToSkip = (videoId?: string, channelId?: string): string | null => {
   return null;
 };
 
+const canSkipNow = () => {
+  const now = Date.now();
+  recentSkips = recentSkips.filter((t) => now - t < SKIP_WINDOW_MS);
+  return recentSkips.length < MAX_SKIPS;
+};
+
+const check = () => {
+  if (!active || !api) return;
+  const details = api.getPlayerResponse?.()?.videoDetails;
+  const videoId: string | undefined = details?.videoId;
+  const channelId: string | undefined = details?.channelId;
+  if (!videoId || videoId === lastCheckedId) return;
+  lastCheckedId = videoId;
+
+  const reason = reasonToSkip(videoId, channelId);
+  if (!reason) return;
+  if (!canSkipNow()) {
+    console.warn('[skip-ai-slop] skip limit reached, not skipping', videoId);
+    return;
+  }
+  recentSkips.push(Date.now());
+  console.info(`[skip-ai-slop] skipping ${videoId} (${reason})`);
+  api.nextVideo();
+};
+
+const attach = () => {
+  if (!api || video) return;
+  video = document.querySelector('video');
+  // 'loadedmetadata' fires for every new track on the same <video> element.
+  video?.addEventListener('loadedmetadata', check);
+  check();
+};
+
+const detach = () => {
+  video?.removeEventListener('loadedmetadata', check);
+  video = null;
+  lastCheckedId = null;
+};
+
 export default createPlugin({
   name: 'Skip AI Slop',
   restartNeeded: false,
   config: defaultConfig,
 
   renderer: {
-    async start({ getConfig }: { getConfig: () => Promise<Config> }) {
-      config = { ...defaultConfig, ...(await getConfig()) };
+    async start(context: { getConfig: () => Promise<Config> }) {
+      config = { ...defaultConfig, ...(await context.getConfig()) };
+      active = true;
       await refreshList();
+      attach(); // no-op until onPlayerApiReady has provided the api
+    },
+
+    onPlayerApiReady(playerApi: any) {
+      api = playerApi;
+      if (active) attach();
     },
 
     onConfigChange(newConfig: Config) {
       config = { ...defaultConfig, ...newConfig };
     },
 
-    onPlayerApiReady(api: any) {
-      const check = () => {
-        if (!config.enabled) return;
-        const details = api.getPlayerResponse?.()?.videoDetails;
-        const videoId: string | undefined = details?.videoId;
-        const channelId: string | undefined = details?.channelId;
-        if (!videoId || videoId === lastSkippedId) return;
-
-        const reason = reasonToSkip(videoId, channelId);
-        if (reason) {
-          lastSkippedId = videoId;
-          console.info(`[skip-ai-slop] skipping ${videoId} (${reason})`);
-          api.nextVideo();
-        }
-      };
-
-      document.addEventListener('videodatachange', (e: Event) => {
-        if ((e as CustomEvent).detail?.name === 'dataloaded') check();
-      });
-    },
-
     stop() {
-      // listeners are page-scoped; nothing persistent to tear down in this draft
+      active = false;
+      detach();
     },
   },
 });
