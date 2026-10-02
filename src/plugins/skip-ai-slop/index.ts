@@ -128,12 +128,12 @@ export default createPlugin({
   config: defaultConfig,
 
   renderer: {
-    async start(context: RendererContext<Config>) {
+    async start(context) {
       const cfg = await context.getConfig();
       config = { ...defaultConfig, ...cfg };
       active = true;
       await refreshList();
-      attach(); // no-op until onPlayerApiReady has provided the api
+      attach();
     },
 
     onPlayerApiReady(playerApi: any) {
