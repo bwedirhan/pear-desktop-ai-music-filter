@@ -34,7 +34,7 @@ Pear Desktop eklentileri uygulamanın kaynak kodunun içinde derlenir:
 
 ```typescript
 const BLACKLIST_URL =
-  'https://raw.githubusercontent.com/YOUR_GITHUB_USER/pear-desktop-ai-slop-filter/main/blacklist.json';
+  'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
 ```
 
 5. Eklentiyi uygulamanın plugin listesine kaydet (diğer eklentilerin nasıl listelendiğine bak) ve derle.
