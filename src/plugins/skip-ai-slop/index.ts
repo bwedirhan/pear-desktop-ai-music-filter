@@ -1,5 +1,5 @@
 /**
- * skip-ai-slop — Pear Desktop plugin (v2 draft)
+ * skip-ai-slop — Pear Desktop plugin (v3 draft)
  *
  * Copy to: src/plugins/skip-ai-slop/index.ts in a pear-desktop checkout, then
  * register it the same way the other plugins are registered (see how
@@ -10,11 +10,11 @@
  *
  * STILL UNVERIFIED (could not read the real plugins' source):
  *  - that api.getPlayerResponse() and api.nextVideo() exist on the player API object
- *  - the exact type of `context` in renderer.start (getConfig is used as in the README's menu example)
  * To avoid depending on app-internal event names, track changes are detected with
  * standard <video> element events instead of app-specific custom events.
  */
 import { createPlugin } from '@/utils';
+import type { RendererContext } from '@/types/plugins';
 
 const BLACKLIST_URL =
   'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
@@ -51,9 +51,9 @@ const refreshList = async () => {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (raw) {
-      const { data, ts } = JSON.parse(raw);
-      if (data?.version === SUPPORTED_SCHEMA) list = data;
-      if (Date.now() - ts < CACHE_TTL_MS) return; // cache still fresh
+      const parsed = JSON.parse(raw) as { data?: Blacklist; ts?: number };
+      if (parsed.data?.version === SUPPORTED_SCHEMA) list = parsed.data;
+      if (parsed.ts && Date.now() - parsed.ts < CACHE_TTL_MS) return; // cache still fresh
     }
   } catch {
     // ignore corrupt cache
@@ -123,13 +123,14 @@ const detach = () => {
 };
 
 export default createPlugin({
-  name: 'Skip AI Slop',
+  name: () => 'Skip AI Slop',
   restartNeeded: false,
   config: defaultConfig,
 
   renderer: {
-    async start(context: { getConfig: () => Promise<Config> }) {
-      config = { ...defaultConfig, ...(await context.getConfig()) };
+    async start(context: RendererContext<Config>) {
+      const cfg = await context.getConfig();
+      config = { ...defaultConfig, ...cfg };
       active = true;
       await refreshList();
       attach(); // no-op until onPlayerApiReady has provided the api
