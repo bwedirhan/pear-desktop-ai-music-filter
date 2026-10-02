@@ -14,7 +14,6 @@
  * standard <video> element events instead of app-specific custom events.
  */
 import { createPlugin } from '@/utils';
-import type { RendererContext } from '@/types/plugins';
 
 const BLACKLIST_URL =
   'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
@@ -133,7 +132,7 @@ export default createPlugin({
       config = { ...defaultConfig, ...cfg };
       active = true;
       await refreshList();
-      attach();
+      attach(); // no-op until onPlayerApiReady has provided the api
     },
 
     onPlayerApiReady(playerApi: any) {
