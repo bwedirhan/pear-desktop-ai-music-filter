@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-MIT%20%2B%20CC0--1.0-orange?style=for-the-badge)](#-lisans)
 [![Status](https://img.shields.io/badge/status-draft-yellow?style=for-the-badge)](#-durum)
 
-[🇹🇷 Türkçe](#-türkçe) · [🇬🇧 English](#-english) · [🐛 Issue](https://github.com/KULLANICI_ADI/pear-desktop-ai-slop-filter/issues/new) · [⭐ Star](https://github.com/KULLANICI_ADI/pear-desktop-ai-slop-filter)
+[🇹🇷 Türkçe](#-türkçe) · [🇬🇧 English](#-english) · [🐛 Issue](https://github.com/bwedirhan/pear-desktop-ai-slop-filter/issues/new) · [⭐ Star](https://github.com/bwedirhan/pear-desktop-ai-slop-filter)
 
 ![](https://raw.githubusercontent.com/michei69/disclaimers/refs/heads/main/ai/x4.png)
 
