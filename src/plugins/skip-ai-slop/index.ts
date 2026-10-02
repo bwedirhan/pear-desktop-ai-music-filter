@@ -26,7 +26,7 @@ const BLACKLIST_URL =
 const CACHE_KEY = 'skip-ai-slop:blacklist';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // re-check hourly; refreshList() exits early while cache is fresh
-const SUPPORTED_SCHEMA = 1;
+const SUPPORTED_SCHEMA = 2;
 const MAX_SKIPS = 5; // safety: stop skipping if this many skips happen...
 const SKIP_WINDOW_MS = 10_000; // ...within this window (e.g. whole queue is blacklisted)
 
