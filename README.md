@@ -21,9 +21,10 @@
 # 🇹🇷 Türkçe
 
 > [!WARNING]
-> **Durum: taslak.** Eklenti Pear Desktop'un geliştirme modunda (`dev`) denendi ve
-> `videoId` eşleşmesiyle parça atlama çalışıyor. Kanal (`channelId`) eşleşmesi,
-> GitHub'dan gerçek indirme akışı ve paketlenmiş (production) sürüm henüz test edilmedi.
+> **Durum: Geliştirme.** Eklenti Pear Desktop'un geliştirme modunda (`dev`) denendi.
+> `videoId` ve `channelId` eşleşmesiyle parça ve kanal atlama çalışıyor.
+> GitHub'dan gerçek indirme akışı da başarıyla test edildi ve çalışıyor.
+> Paketlenmiş (production) sürüm henüz test edilmedi.
 
 ## 📖 İçindekiler
 
@@ -208,9 +209,10 @@ Vite sunucusuyla birlikte açılır. Eklentiyi **Ayarlar ▸ Eklentiler** yolund
 # 🇬🇧 English
 
 > [!WARNING]
-> **Status: draft.** The plugin has been tested in Pear Desktop's development mode (`dev`),
-> and track skipping via `videoId` matching works. Channel (`channelId`) matching,
-> the real download flow from GitHub, and the packaged (production) build have not been tested yet.
+> **Status: Development.** The plugin has been tested in Pear Desktop's development mode (`dev`).
+> Track and channel skipping via `videoId` and `channelId` matching works.
+> The real download flow from GitHub has also been successfully tested and works.
+> The packaged (production) build has not been tested yet.
 
 ## 📖 Table of Contents
 
