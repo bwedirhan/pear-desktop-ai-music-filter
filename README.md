@@ -6,8 +6,8 @@
 
 **A community-curated blacklist that automatically skips AI-generated channels/tracks in Pear Desktop.**
 
-[![Channels](https://img.shields.io/badge/channels-1277-blue?style=for-the-badge)](#-şema-version-1)
-[![Version](https://img.shields.io/badge/schema-v1-green?style=for-the-badge)](#-şema-version-1)
+[![Channels](https://img.shields.io/badge/channels-4107-blue?style=for-the-badge)](#-şema-version-1)
+[![Version](https://img.shields.io/badge/schema-v2-green?style=for-the-badge)](#-şema-version-2)
 [![License](https://img.shields.io/badge/license-MIT%20%2B%20CC0--1.0-orange?style=for-the-badge)](#-lisans)
 [![Status](https://img.shields.io/badge/status-draft-yellow?style=for-the-badge)](#-durum)
 
