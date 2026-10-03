@@ -43,21 +43,6 @@ import { KeywordList } from './KeywordList';
 import { ListTools } from './ListTools';
 import { SearchBlocked } from './SearchBlocked';
 
-// ---- timing -----------------------------------------------------------------
-// performance.now() counts from the start of this page load, so these lines show
-// WHEN each stage happens after a refresh. Each label is logged once per load.
-const stamp = (() => {
-  const seen = new Set<string>();
-  return (label: string, extra = '') => {
-    if (seen.has(label)) return;
-    seen.add(label);
-    console.info(
-      `[skip-ai-slop] ⏱ ${label}: ${Math.round(performance.now())}ms${extra}`,
-    );
-  };
-})();
-stamp('plugin code loaded');
-
 const BLACKLIST_URL =
   'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
 const CACHE_KEY = 'skip-ai-slop:blacklist';
@@ -207,7 +192,6 @@ const downloadList = async (): Promise<boolean> => {
 /** A new list arrived: apply it to everything already on screen / playing. */
 const onListChanged = () => {
   filterVersion++;
-  stamp('GitHub list ready');
   lastCheckedId = null; // re-evaluate the playing track against the new list
   scanSearchResults();
   scanQueue();
@@ -867,8 +851,6 @@ const scanSearchResults = () => {
   const cards = document.querySelectorAll<HTMLElement>(SEARCH_ITEMS);
   // If cards were already on the page at the first scan, the plugin started
   // after the page drew them. That gap is what shows up as "slow".
-  stamp('first page scan', ` (${cards.length} cards already on the page)`);
-  if (cards.length) stamp('first card seen', ` (${cards.length} cards)`);
   for (const el of cards) {
     const data = (el as any).data;
     let flagged = false;
@@ -908,7 +890,6 @@ const scanSearchResults = () => {
       el.setAttribute(HIDDEN_ATTR, '');
       el.style.display = 'none';
       hiddenCount++;
-      stamp('first card hidden');
     } else if (!flagged && isHidden) {
       el.removeAttribute(HIDDEN_ATTR);
       el.style.removeProperty('display');
@@ -1158,14 +1139,12 @@ export default createPlugin({
       tools: ListTools,
     },
     async start(context) {
-      stamp('start called');
       listenForListTools();
       savePluginConfig = context.setConfig;
       const cfg = await context.getConfig();
       config = { ...defaultConfig, ...cfg };
       rebuildKeywords();
       active = true;
-      stamp('config loaded');
 
       // The app starts renderer plugins one after another and waits for each
       // start() to finish, and it only hands out the player API once all of them
