@@ -23,14 +23,25 @@ import { createPlugin } from '@/utils';
 
 import { AllowedList, BlockedList, RecentList } from './ChannelLists';
 import {
+  allowedNames,
   compileKeywords,
+  clearBlacklistNames,
   defaultConfig,
+  EVT_CLEAR,
+  EVT_DOWNLOAD,
+  EVT_INFO,
+  EVT_STATUS,
+  hasBlacklistNames,
+  type ListStatus,
   normalizeChannels,
   recordFiltered,
   type SkipAiSlopConfig,
+  writeBlacklistNames,
 } from './config';
 import { EARLY_ATTR, READY_ATTR, startEarlyScan, stopEarlyScan } from './early';
 import { KeywordList } from './KeywordList';
+import { ListTools } from './ListTools';
+import { SearchBlocked } from './SearchBlocked';
 
 // ---- timing -----------------------------------------------------------------
 // performance.now() counts from the start of this page load, so these lines show
@@ -67,6 +78,7 @@ type Config = SkipAiSlopConfig;
 
 let keywords: RegExp[] = []; // whole-word matchers (see compileKeyword in config.ts)
 let allowIds = new Set<string>();
+let allowNames = new Set<string>(); // lower-cased names of allowed channels
 let blockIds = new Set<string>();
 // Artists learned from a flagged uploader during this session only. Never saved
 // to the config: an uploader/distributor on the list must not permanently block
@@ -83,6 +95,7 @@ let savePluginConfig:
 const rebuildKeywords = () => {
   keywords = compileKeywords(config.keywords);
   allowIds = new Set(normalizeChannels(config.userAllow).map((c) => c.id));
+  allowNames = allowedNames(config.userAllow);
   blockIds = new Set(normalizeChannels(config.userBlock).map((c) => c.id));
   filterVersion++;
 };
@@ -127,8 +140,9 @@ const has = (o: Record<string, Entry>, k: string) =>
 
 /**
  * Matching only needs the IDs. Dropping names and reasons makes the cached copy
- * (and the in-memory one) roughly 85% smaller, so it stays far from the
- * localStorage quota, which early.ts also depends on.
+ * (and the in-memory one) roughly 85% smaller, so it parses fast at startup and
+ * stays far from the localStorage quota, which early.ts also depends on. Names
+ * for the settings search are saved separately (writeBlacklistNames).
  */
 const slim = (d: Blacklist): Blacklist => {
   const keysOnly = (o: Record<string, Entry>) =>
@@ -173,6 +187,7 @@ const downloadList = async (): Promise<boolean> => {
       console.warn('[skip-ai-slop] invalid or unsupported blacklist, keeping old list');
       return false;
     }
+    writeBlacklistNames(data); // names for the settings search, kept apart from the matching cache
     list = slim(data);
     try {
       localStorage.setItem(
@@ -205,6 +220,55 @@ const refreshList = async () => {
   if (await downloadList()) onListChanged();
 };
 
+// ---- buttons in Settings -> "Community list" -------------------------------
+const emitStatus = (text: string, busy = false) =>
+  window.dispatchEvent(
+    new CustomEvent<ListStatus>(EVT_STATUS, { detail: { text, busy } }),
+  );
+
+const listSummary = () =>
+  list
+    ? `Loaded: ${Object.keys(list.channels).length} channels, ${Object.keys(list.tracks).length} tracks (list dated ${list.updated_at}).`
+    : 'No list loaded right now.';
+
+const onInfoRequest = () => emitStatus(listSummary());
+
+const onDownloadRequest = async () => {
+  emitStatus('Downloading…', true);
+  const ok = await downloadList();
+  if (ok) onListChanged();
+  emitStatus(
+    ok
+      ? `Downloaded. ${listSummary()}`
+      : 'Download failed, the old list was kept (details in the console).',
+  );
+};
+
+const onClearRequest = () => {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+  clearBlacklistNames();
+  list = null;
+  onListChanged(); // re-judge everything without the community list
+  emitStatus(
+    'Cache cleared. The community list is off until you press "Download list now" (or restart the app).',
+  );
+};
+
+const listenForListTools = () => {
+  window.addEventListener(EVT_INFO, onInfoRequest);
+  window.addEventListener(EVT_DOWNLOAD, onDownloadRequest);
+  window.addEventListener(EVT_CLEAR, onClearRequest);
+};
+const stopListeningForListTools = () => {
+  window.removeEventListener(EVT_INFO, onInfoRequest);
+  window.removeEventListener(EVT_DOWNLOAD, onDownloadRequest);
+  window.removeEventListener(EVT_CLEAR, onClearRequest);
+};
+
 const baseReason = (
   videoId?: string,
   channelIds: string[] = [],
@@ -212,7 +276,12 @@ const baseReason = (
   author?: string,
 ): string | null => {
   const ids = [videoId, ...channelIds].filter(Boolean) as string[];
-  if (ids.some((id) => allowIds.has(id))) return null; // allow always wins
+  // allow always wins: by id, or by name when the card shows an allowed channel's
+  // name under a different id than the one that was allowed
+  const nameAllowed = (t?: string) => !!t && allowNames.has(t.trim().toLowerCase());
+  if (ids.some((id) => allowIds.has(id)) || nameAllowed(title) || nameAllowed(author)) {
+    return null;
+  }
   if (ids.some((id) => blockIds.has(id))) return 'user-block';
   if (ids.some((id) => sessionBlockIds.has(id))) return 'learned-artist';
   if (matchesKeyword(title)) return 'keyword:title';
@@ -1050,6 +1119,22 @@ export default createPlugin({
       description: () => 'Never filtered, no matter what',
       component: 'skip-ai-slop.allowed',
     },
+    {
+      type: 'custom',
+      key: 'listTools',
+      label: () => 'Community list',
+      description: () =>
+        'Download the list from GitHub again, or clear its saved copy',
+      component: 'skip-ai-slop.tools',
+    },
+    {
+      type: 'custom',
+      key: 'searchBlocked',
+      label: () => 'Search the community list',
+      description: () =>
+        'Find a channel or track on the community list by name or ID, and allow it',
+      component: 'skip-ai-slop.search',
+    },
   ],
 
   // Runs ~2 s before the renderer (measured): hides known-flagged cards before
@@ -1069,9 +1154,12 @@ export default createPlugin({
       blocked: BlockedList,
       recent: RecentList,
       allowed: AllowedList,
+      search: SearchBlocked,
+      tools: ListTools,
     },
     async start(context) {
       stamp('start called');
+      listenForListTools();
       savePluginConfig = context.setConfig;
       const cfg = await context.getConfig();
       config = { ...defaultConfig, ...cfg };
@@ -1086,7 +1174,8 @@ export default createPlugin({
       // background and is applied when it arrives.
       const cacheFresh = loadCachedList();
       startPageScan(); // keywords, block/allow lists and the cached list work at once
-      if (!cacheFresh) {
+      // also download once when the names for the settings search are missing
+      if (!cacheFresh || !hasBlacklistNames()) {
         void downloadList().then((ok) => {
           if (ok) onListChanged();
         });
@@ -1104,12 +1193,15 @@ export default createPlugin({
     onConfigChange(newConfig: Config) {
       config = { ...defaultConfig, ...newConfig };
       rebuildKeywords();
+      lastCheckedId = null; // re-evaluate the currently playing track against the new config
       scanQueue();
       scanSearchResults();
+      check(); // skip it now if the change just blocked it
     },
 
     stop() {
       active = false;
+      stopListeningForListTools();
       if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;

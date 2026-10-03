@@ -109,3 +109,111 @@ export const forgetFiltered = (id: string) => {
     /* ignore */
   }
 };
+
+// ---- names of the downloaded community list (for the "Search the community
+// list" setting). The matching cache (skip-ai-slop:blacklist) keeps IDs only, so
+// it stays small and quick to parse at startup (index.ts and early.ts both read
+// it). Names live in this separate store, which only the settings search reads,
+// lazily and once.
+export const NAMES_KEY = 'skip-ai-slop:blacklist-names';
+
+export type BlacklistName = {
+  id: string;
+  name: string; // falls back to the id when the list has no name
+  kind: 'channel' | 'track';
+  lower: string; // lower-cased name, for searching
+  idLower: string;
+};
+
+type NamedEntry = { name?: string; title?: string };
+let namesCache: BlacklistName[] | null = null;
+
+/** Saves { id: name } for channels and { id: title } for tracks. */
+export const writeBlacklistNames = (data: {
+  channels?: Record<string, NamedEntry>;
+  tracks?: Record<string, NamedEntry>;
+}) => {
+  namesCache = null;
+  try {
+    const channels: Record<string, string> = {};
+    for (const [id, e] of Object.entries(data.channels ?? {})) {
+      channels[id] = e?.name ?? '';
+    }
+    const tracks: Record<string, string> = {};
+    for (const [id, e] of Object.entries(data.tracks ?? {})) {
+      tracks[id] = e?.title ?? e?.name ?? '';
+    }
+    localStorage.setItem(NAMES_KEY, JSON.stringify({ channels, tracks }));
+  } catch {
+    /* storage full or unavailable: search just stays empty */
+  }
+};
+
+export const hasBlacklistNames = (): boolean => {
+  try {
+    return localStorage.getItem(NAMES_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
+/** Parsed once and kept in memory; an empty result is not cached, so names that arrive later are picked up. */
+export const readBlacklistNames = (): BlacklistName[] => {
+  if (namesCache?.length) return namesCache;
+  const out: BlacklistName[] = [];
+  try {
+    const raw = localStorage.getItem(NAMES_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    for (const kind of ['channel', 'track'] as const) {
+      const group = parsed?.[kind === 'channel' ? 'channels' : 'tracks'];
+      if (!group || typeof group !== 'object') continue;
+      for (const [id, n] of Object.entries(group)) {
+        const name = typeof n === 'string' && n ? n : id;
+        out.push({
+          id,
+          name,
+          kind,
+          lower: name.toLowerCase(),
+          idLower: id.toLowerCase(),
+        });
+      }
+    }
+  } catch {
+    /* ignore a corrupt store */
+  }
+  if (out.length) namesCache = out;
+  return out;
+};
+
+/** Removes the saved names (used by "Clear cache"). */
+export const clearBlacklistNames = () => {
+  namesCache = null;
+  try {
+    localStorage.removeItem(NAMES_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
+// ---- messages between the "Community list" settings buttons and index.ts.
+// The settings component cannot import index.ts (index.ts imports it), so the
+// two talk through window events.
+export const EVT_DOWNLOAD = 'skip-ai-slop:download'; // settings -> plugin
+export const EVT_CLEAR = 'skip-ai-slop:clear-cache'; // settings -> plugin
+export const EVT_INFO = 'skip-ai-slop:info-request'; // settings -> plugin
+export const EVT_STATUS = 'skip-ai-slop:status'; // plugin -> settings
+export type ListStatus = { text: string; busy: boolean };
+
+/**
+ * Names of allowed channels, lower-cased, for allowing by name. A channel can
+ * have more than one id (the community list may hold one while YouTube Music
+ * shows another), so an id alone is not enough to honour "Allow". Entries whose
+ * name is just their id are left out.
+ */
+export const allowedNames = (raw: unknown): Set<string> =>
+  new Set(
+    normalizeChannels(raw)
+      .filter((c) => c.name !== c.id)
+      .map((c) => c.name.trim().toLowerCase())
+      .filter(Boolean),
+  );

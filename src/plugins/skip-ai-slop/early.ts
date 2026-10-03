@@ -20,7 +20,7 @@
  * Nothing here touches `document` at import time (index.ts also imports this
  * file into the renderer bundle for the two constants below).
  */
-import { compileKeywords, normalizeChannels } from './config';
+import { allowedNames, compileKeywords, normalizeChannels } from './config';
 
 export const EARLY_ATTR = 'data-skip-ai-slop-early';
 export const READY_ATTR = 'data-skip-ai-slop-ready';
@@ -31,13 +31,13 @@ const SUPPORTED_SCHEMA = 2;
 
 const GIVE_UP_MS = 60_000; // safety: stop watching if the renderer never takes over
 
-// Only the cards of horizontal shelves (home, explore, artist pages). List rows
-// (search, library, playlists) and the top-result card are left to the renderer:
-// YouTube Music measures those after drawing them to decide how much more to
-// load, and hiding them before that measurement broke the page layout.
+// Shelf cards AND search/list rows. Search results come as one API response
+// (not infinite scroll), so hiding them before paint doesn't affect YouTube
+// Music's "load more" measurement the way shelf cards did.
 const CARD_SELECTOR = [
   'ytmusic-two-row-item-renderer',
   'ytmusic-multi-row-list-item-renderer',
+  'ytmusic-responsive-list-item-renderer',
 ]
   .map((tag) => `${tag}:not(ytmusic-player-queue *)`)
   .join(', ');
@@ -47,6 +47,7 @@ const VIDEO_RE = /[?&]v=([\w-]{11})/;
 
 type Rules = {
   allow: Set<string>;
+  allowNames: Set<string>; // lower-cased names of allowed channels
   block: Set<string>;
   keywords: RegExp[]; // whole-word matchers, see compileKeyword in config.ts
   channels: Set<string>; // downloaded list
@@ -60,6 +61,7 @@ let giveUpTimer: ReturnType<typeof setTimeout> | null = null;
 const buildRules = (cfg: any): Rules => {
   const out: Rules = {
     allow: new Set(normalizeChannels(cfg.userAllow).map((c) => c.id)),
+    allowNames: allowedNames(cfg.userAllow),
     block: new Set(normalizeChannels(cfg.userBlock).map((c) => c.id)),
     keywords: compileKeywords(cfg.keywords),
     channels: new Set(),
@@ -98,6 +100,7 @@ const isFlagged = (card: Element, r: Rules): boolean => {
   }
   const ids = [...videoIds, ...channelIds];
   if (ids.some((id) => r.allow.has(id))) return false; // allow always wins
+  if (texts.some((t) => r.allowNames.has(t.trim().toLowerCase()))) return false; // ...also by name
   if (ids.some((id) => r.block.has(id))) return true;
   if (r.keywords.length && texts.some((t) => r.keywords.some((k) => k.test(t)))) {
     return true;
