@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import nextIcon from '@assets/media-icons-black/next.png?asset&asarUnpack';
 import pauseIcon from '@assets/media-icons-black/pause.png?asset&asarUnpack';
 import playIcon from '@assets/media-icons-black/play.png?asset&asarUnpack';

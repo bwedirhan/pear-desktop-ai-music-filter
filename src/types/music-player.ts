@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // TODO: fully type definitions for music-player
 
 import type { GetPlayerResponse } from './get-player-response';

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import dislikeHollowIconBlack from '@assets/media-icons-black/dislike-hollow.png?asset&asarUnpack';
 import dislikeIconBlack from '@assets/media-icons-black/dislike.png?asset&asarUnpack';
 import likeHollowIconBlack from '@assets/media-icons-black/like-hollow.png?asset&asarUnpack';

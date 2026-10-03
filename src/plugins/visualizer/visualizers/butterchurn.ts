@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import Butterchurn from 'butterchurn';
 import ButterchurnPresets from 'butterchurn-presets';
 

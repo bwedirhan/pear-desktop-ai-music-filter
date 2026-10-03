@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // This is used for to control the songs
 import { type BrowserWindow, ipcMain } from 'electron';
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const defaultPresets = ['bass-booster'] as const;
 export type Preset = (typeof defaultPresets)[number];
 

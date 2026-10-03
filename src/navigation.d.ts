@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /* oxlint-disable typescript/no-explicit-any */
 
 interface NavigationOptions {

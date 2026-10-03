@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import HoverPopupAsset from '@assets/hover-popup.html?asset';
 import { BrowserWindow, screen, app } from 'electron';
 

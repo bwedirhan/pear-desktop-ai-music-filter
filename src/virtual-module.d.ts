@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare module 'virtual:plugins' {
   import type { PluginConfig, PluginDef } from '@/types/plugins';
 

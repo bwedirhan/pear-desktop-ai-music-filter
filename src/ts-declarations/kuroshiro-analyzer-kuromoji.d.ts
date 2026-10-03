@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // Stolen from https://github.com/hexenq/kuroshiro-analyzer-kuromoji/pull/7
 // Credit goes to https://github.com/ALOHACREPES345
 

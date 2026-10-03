@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { webFrame } from 'electron';
 
 import { t } from '@/i18n';

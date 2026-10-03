@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { Mutex } from 'async-mutex';
 import { type BrowserWindow, ipcMain, nativeImage, net } from 'electron';
 

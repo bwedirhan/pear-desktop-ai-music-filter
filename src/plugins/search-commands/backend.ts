@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { getSongControls } from '@/providers/song-controls';
 import { createBackend } from '@/utils';
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * node-smtc is an optional dependency restricted to win32 (see `.pnpmfile.cjs`),
  * so on macOS/Linux it is never installed and its own types are missing. This

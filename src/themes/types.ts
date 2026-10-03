@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * An external theme is a folder under `<userData>/themes`:
  *

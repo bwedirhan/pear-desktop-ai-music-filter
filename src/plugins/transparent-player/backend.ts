@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import is from 'electron-is';
 
 import { createBackend } from '@/utils';

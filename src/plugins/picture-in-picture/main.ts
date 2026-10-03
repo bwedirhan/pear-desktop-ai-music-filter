@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { app } from 'electron';
 
 import type { PictureInPicturePluginConfig } from './index';

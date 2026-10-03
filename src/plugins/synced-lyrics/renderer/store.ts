@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createEffect, createMemo, runWithOwner, untrack } from 'solid-js';
 import { createStore } from 'solid-js/store';
 

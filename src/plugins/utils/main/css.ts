@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 type Unregister = () => void;
 
 let isLoaded = false;

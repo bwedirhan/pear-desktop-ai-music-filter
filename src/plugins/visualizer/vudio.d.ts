@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare module 'vudio/umd/vudio' {
   interface NoneWaveformOptions {
     maxHeight?: number;

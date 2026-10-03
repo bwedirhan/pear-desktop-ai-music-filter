@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { ProviderNames } from './index';
 import { LRCLib } from './LRCLib';
 import { LyricsGenius } from './LyricsGenius';

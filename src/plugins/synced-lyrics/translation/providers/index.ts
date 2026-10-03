@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { anthropicProvider } from './anthropic';
 import { geminiProvider } from './gemini';
 import { googleTranslateProvider } from './google-translate';

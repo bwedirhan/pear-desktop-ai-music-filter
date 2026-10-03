@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { StatusDisplayType } from 'discord-api-types/v10';
 
 import { APPLICATION_NAME, t } from '@/i18n';

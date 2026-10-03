@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import path from 'node:path';
 
 import { app, type BrowserWindow } from 'electron';

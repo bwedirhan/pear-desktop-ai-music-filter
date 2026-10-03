@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 const VIDEO_ID = /^[\w-]{11}$/;
 const YOUTUBE_HOST = /(^|\.)(youtube\.com|youtu\.be)$/;
 

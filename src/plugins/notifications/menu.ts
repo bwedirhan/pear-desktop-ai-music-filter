@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { type MenuItem } from 'electron';
 import is from 'electron-is';
 

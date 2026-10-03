@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { PlayerConfig } from '@/types/get-player-response';
 
 export interface GetState {

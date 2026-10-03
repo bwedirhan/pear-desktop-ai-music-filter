@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { WatchNextResponse } from '@/types/music-player-desktop-internal';
 
 export interface AlbumDetails {

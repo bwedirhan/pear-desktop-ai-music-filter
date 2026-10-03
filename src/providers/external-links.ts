@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * Where a link clicked inside the app should go.
  *

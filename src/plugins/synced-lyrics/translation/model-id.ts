@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { normalizeGoogleTranslateHost } from './providers/google-translate-host';
 
 import type {

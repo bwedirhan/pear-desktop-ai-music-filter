@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import musicPlayerIconYtmIco from '@assets/generated/icons/win/icon-ytm.ico?asset&asarUnpack';
 import musicPlayerIconYtm from '@assets/icon-ytm.png?asset&asarUnpack';
 import musicPlayerIcon from '@assets/icon.png?asset&asarUnpack';

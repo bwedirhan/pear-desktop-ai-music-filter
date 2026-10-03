@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare class Rm3LinkedArrayNode<T> {
   value: T;
   next: Rm3LinkedArrayNode<T> | null;

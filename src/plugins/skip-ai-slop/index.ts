@@ -1,4 +1,5 @@
 // Copyright (c) 2026 bwedirhan. MIT License.
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * skip-ai-slop — Pear Desktop plugin (v4 draft)
  *

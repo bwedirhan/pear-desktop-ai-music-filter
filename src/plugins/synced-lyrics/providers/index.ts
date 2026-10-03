@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import * as z from 'zod';
 
 import { normalizeOrder } from '@/types/settings';

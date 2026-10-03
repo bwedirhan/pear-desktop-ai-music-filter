@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // Segments are an array [ [start, end], … ]
 import type { Segment } from './types';
 

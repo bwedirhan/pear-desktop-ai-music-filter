@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import packageJson from '../package.json' with { type: 'json' };
 
 /**

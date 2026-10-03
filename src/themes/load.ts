@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { join } from 'node:path';

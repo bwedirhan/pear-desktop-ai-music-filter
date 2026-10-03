@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { nativeImage, Tray } from 'electron';
 import is from 'electron-is';
 

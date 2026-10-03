@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import '@total-typescript/ts-reset';
 
 import type * as config from './config';

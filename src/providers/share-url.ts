@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 const MUSIC_HOST_PATTERN = /^(https?:\/\/)music\.youtube\.com(?=[:/?#]|$)/i;
 const SI_PARAM_PATTERN = /[?&]si=[^&]*/i;
 

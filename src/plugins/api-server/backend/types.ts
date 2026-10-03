@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { type serve } from '@hono/node-server';
 import { type OpenAPIHono as Hono } from '@hono/zod-openapi';
 

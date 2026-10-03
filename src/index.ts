@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import fs from 'node:fs';
 import { basename, extname, join } from 'node:path';
 

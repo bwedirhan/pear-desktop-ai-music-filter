@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import Color, { type ColorInstance } from 'color';
 import { FastAverageColor } from 'fast-average-color';
 

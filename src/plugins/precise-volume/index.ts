@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import prompt, { type KeybindOptions } from 'custom-electron-prompt';
 import { globalShortcut, type MenuItem } from 'electron';
 

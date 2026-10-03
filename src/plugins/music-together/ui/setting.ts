@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { t } from '@/i18n';
 import { Popup } from '@/plugins/music-together/element';
 import { ElementFromHtml } from '@/plugins/utils/renderer';

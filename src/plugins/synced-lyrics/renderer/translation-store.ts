@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createStore } from 'solid-js/store';
 import { detectAll } from 'tinyld';
 

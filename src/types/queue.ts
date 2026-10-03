@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { GetState, QueueItem } from '@/types/datahost-get-state';
 import type { MusicPlayer } from '@/types/music-player';
 

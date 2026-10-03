@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { ElementFromHtml } from '@/plugins/utils/renderer';
 
 import itemHTML from './templates/item.html?raw';

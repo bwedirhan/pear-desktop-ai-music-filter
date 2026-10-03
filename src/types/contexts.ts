@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { PluginConfig } from '@/types/plugins';
 import type {
   IpcMain,

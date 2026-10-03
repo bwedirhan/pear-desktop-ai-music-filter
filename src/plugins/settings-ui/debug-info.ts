@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createSignal, onCleanup } from 'solid-js';
 
 import type { AppMeta } from './state';

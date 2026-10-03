@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 type DebugSender = (message: string, data?: unknown) => void;
 
 let sender: DebugSender | null = null;

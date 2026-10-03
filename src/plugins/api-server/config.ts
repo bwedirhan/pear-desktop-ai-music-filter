@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export enum AuthStrategy {
   AUTH_AT_FIRST = 'AUTH_AT_FIRST',
   NONE = 'NONE',

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { spawn, type ChildProcess } from 'node:child_process';
 
 export type FlyoutRect = {

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type Profile = {
   id: string;
   handleId: string;

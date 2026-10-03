@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { createRoute, z } from '@hono/zod-openapi';
 import { dialog } from 'electron';

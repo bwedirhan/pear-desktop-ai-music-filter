@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare module 'keyboardevent-from-electron-accelerator' {
   interface KeyboardEvent {
     key?: string;

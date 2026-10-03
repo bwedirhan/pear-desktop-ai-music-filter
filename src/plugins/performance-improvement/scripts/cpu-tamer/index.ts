@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { injectCpuTamerByAnimationFrame } from './cpu-tamer-by-animationframe';
 import { injectCpuTamerByDomMutation } from './cpu-tamer-by-dom-mutation';
 

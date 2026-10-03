@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { AuthProxyConfig } from '../config';
 import type { Server } from 'http';
 import type { Server as NodeServer, Socket as NodeSocket } from 'node:net';

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { APPLICATION_NAME, t } from '@/i18n';
 import { createPlugin } from '@/utils';
 

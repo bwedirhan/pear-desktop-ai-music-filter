@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export abstract class Visualizer {
   protected audioNode: GainNode;
   protected audioSource: MediaElementAudioSourceNode;

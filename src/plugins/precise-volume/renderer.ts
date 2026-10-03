@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { debounce } from '@/providers/decorators';
 
 import { type PreciseVolumePluginConfig } from './index';

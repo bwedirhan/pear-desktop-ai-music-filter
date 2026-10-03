@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { deepmergeCustom } from 'deepmerge-ts';
 import { createSignal } from 'solid-js';
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { BG, type BgConfig } from 'bgutils-js';
 import { type BrowserWindow } from 'electron';
 import {

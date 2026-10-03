@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export function singleton<T extends (...params: never[]) => unknown>(fn: T): T {
   let called = false;
 

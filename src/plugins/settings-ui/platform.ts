@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { Platform } from '@/types/plugins';
 
 import type { SettingField, SettingsGroup } from '@/types/settings';

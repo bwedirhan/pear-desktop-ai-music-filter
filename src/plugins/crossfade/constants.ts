@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * How close the synced audio has to sit on the video's clock before it is left
  * alone, in seconds. Two copies of a track offset by that much cancel the half

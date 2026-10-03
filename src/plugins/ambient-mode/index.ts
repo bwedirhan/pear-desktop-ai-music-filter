@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { t } from '@/i18n';
 import { createPlugin } from '@/utils';
 import { waitForElement } from '@/utils/wait-for-element';

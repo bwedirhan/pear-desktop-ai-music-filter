@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type RestartRequirement =
   | { type: 'plugin'; id: string }
   | { type: 'setting'; label: string };

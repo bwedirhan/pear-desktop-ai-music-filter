@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type AmbientModePluginConfig = {
   enabled: boolean;
   quality: number;

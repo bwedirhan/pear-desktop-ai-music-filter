@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import prompt from 'custom-electron-prompt';
 import {
   app,

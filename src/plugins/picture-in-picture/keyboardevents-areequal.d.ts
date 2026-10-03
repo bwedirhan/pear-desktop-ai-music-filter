@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare module 'keyboardevents-areequal' {
   interface KeyboardEvent {
     key?: string;

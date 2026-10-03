@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { TranslationRequest } from '../translation/types';
 import type {
   TranslationProviderName,

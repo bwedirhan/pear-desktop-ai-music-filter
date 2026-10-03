@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { test, expect } from '@playwright/test';
 
 import { LRC } from './lrc';

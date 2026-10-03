@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { MusicPlayerAppElement } from '@/types/music-player-app-element';
 import type { QueueElement } from '@/types/queue';
 

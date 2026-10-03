@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { Config, MainPlugin, MenuPlugin, PreloadPlugin } from '../common';
 
 export const defineMainPlugin = <ConfigType extends Config>(

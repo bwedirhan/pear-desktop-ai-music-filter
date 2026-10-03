@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * In-page keyboard shortcuts, written the way Electron accelerators are:
  * `Ctrl+/`, `CmdOrCtrl+K`, `Alt+Shift+Space`.

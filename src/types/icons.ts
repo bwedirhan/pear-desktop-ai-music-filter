@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type GeneralIcons =
   | 'icons:3d-rotation'
   | 'icons:accessibility'

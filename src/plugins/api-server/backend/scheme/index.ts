@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export * from './auth';
 export * from './song-info';
 export * from './seek';

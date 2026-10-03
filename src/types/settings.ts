@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /** Declarative settings schema for the in-app Settings modal. */
 
 import type { Platform } from '@/types/plugins';

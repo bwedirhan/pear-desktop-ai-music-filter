@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // Code adapted from https://greasyfork.org/en/scripts/548724-youtube-music-spotify-%E7%BD%91%E6%98%93%E4%BA%91%E6%AD%8C%E8%AF%8D%E6%98%BE%E7%A4%BA
 // which is licenced under the MIT licence
 // The search ranking follows the script's 0.281 release.

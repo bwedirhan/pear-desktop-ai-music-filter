@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { languageResources } from 'virtual:i18n';
 
 import { t } from '@/i18n';

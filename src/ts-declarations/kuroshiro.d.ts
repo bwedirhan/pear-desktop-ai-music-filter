@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 // Stolen from https://github.com/hexenq/kuroshiro/pull/93
 // Credit goes to https://github.com/ALOHACREPES345 and https://github.com/lcsvcn
 declare class Kuroshiro {

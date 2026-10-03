@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { APPLICATION_NAME } from '@/i18n';
 
 import { HANGUL_FILLER } from './constants';

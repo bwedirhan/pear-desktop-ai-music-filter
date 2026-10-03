@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /// <reference types="electron-vite/node" />
 
 declare module '*.html' {

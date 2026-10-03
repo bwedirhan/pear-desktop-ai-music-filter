@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import Vudio from 'vudio/umd/vudio';
 
 import { Visualizer } from './visualizer';

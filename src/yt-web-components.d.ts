@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { type IntrinsicElements as MDUIElements } from 'mdui/jsx.en';
 
 import type { Icons } from '@/types/icons';

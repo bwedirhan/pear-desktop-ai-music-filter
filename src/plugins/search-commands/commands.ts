@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * Registry for the `/`-prefixed commands the search box understands.
  *

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { nativeImage, type NativeImage, TouchBar } from 'electron';
 
 import { t } from '@/i18n';

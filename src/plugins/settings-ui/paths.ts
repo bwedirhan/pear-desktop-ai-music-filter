@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * Dotted-path access, shared by app options (`options.proxy`) and plugin
  * config keys (`scrobblers.lastfm.apiKey`).

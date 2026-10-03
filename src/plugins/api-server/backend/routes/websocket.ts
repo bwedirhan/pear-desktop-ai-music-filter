@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createRoute, z } from '@hono/zod-openapi';
 import { app as electronApp, ipcMain } from 'electron';
 import { verify } from 'hono/jwt';

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import crypto from 'node:crypto';
 
 import { BrowserWindow, dialog, net } from 'electron';

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { SHA1Hash } from './sha1hash';
 
 export const extractToken = (cookie = document.cookie) =>

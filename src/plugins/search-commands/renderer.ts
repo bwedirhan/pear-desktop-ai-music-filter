@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createRenderer } from '@/utils';
 
 import { registerBuiltinCommands } from './builtins';

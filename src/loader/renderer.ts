@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { deepmerge } from 'deepmerge-ts';
 import { rendererPlugins } from 'virtual:plugins';
 

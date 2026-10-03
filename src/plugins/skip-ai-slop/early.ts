@@ -1,4 +1,5 @@
 // Copyright (c) 2026 bwedirhan. MIT License.
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * early.ts: preload-stage scanner for skip-ai-slop.
  *

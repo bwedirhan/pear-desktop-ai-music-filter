@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const SHA1Hash = async (str: string) => {
   const enc = new TextEncoder();
   const hash = await crypto.subtle.digest('SHA-1', enc.encode(str));

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const waitForElement = <T extends Element>(
   selector: string,
   options: {

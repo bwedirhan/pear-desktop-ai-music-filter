@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { Client as DiscordClient } from '@xhayper/discord-rpc';
 import { ActivityType } from 'discord-api-types/v10';
 import is from 'electron-is';

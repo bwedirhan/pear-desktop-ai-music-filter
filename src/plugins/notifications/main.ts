@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { Notification } from 'electron';
 import is from 'electron-is';
 

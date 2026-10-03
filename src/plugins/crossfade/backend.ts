@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { getAudioBytes, getInnertubeSession } from '@/plugins/utils/main';
 import { createBackend } from '@/utils';
 

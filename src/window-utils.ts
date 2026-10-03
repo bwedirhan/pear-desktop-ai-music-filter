@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 /**
  * Shows a window on the current virtual desktop instead of switching
  * to the desktop where the window was originally created.

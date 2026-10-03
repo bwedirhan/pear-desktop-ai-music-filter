@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { t } from '@/i18n';
 import { Platform } from '@/types/plugins';
 import { createPlugin } from '@/utils';

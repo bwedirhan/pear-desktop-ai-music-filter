@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createRoot, getOwner } from 'solid-js';
 
 let dispose: (() => void) | undefined;

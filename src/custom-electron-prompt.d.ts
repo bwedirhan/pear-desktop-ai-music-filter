@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 declare module 'custom-electron-prompt' {
   import { type BrowserWindow } from 'electron';
 

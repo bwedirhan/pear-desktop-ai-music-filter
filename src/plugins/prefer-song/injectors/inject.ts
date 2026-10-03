@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 interface TextRuns {
   runs: { text: string }[];
 }

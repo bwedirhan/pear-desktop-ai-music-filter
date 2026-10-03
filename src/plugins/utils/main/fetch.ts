@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { net } from 'electron';
 
 export const getNetFetchAsFetch = (): typeof fetch =>

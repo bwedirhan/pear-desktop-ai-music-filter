@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { ProviderName } from './providers';
 import type { SongInfo } from '@/providers/song-info';
 

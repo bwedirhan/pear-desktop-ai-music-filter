@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const startingPages: Record<string, string> = {
   'Default': '',
   'Home': 'FEmusic_home',

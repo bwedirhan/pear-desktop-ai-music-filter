@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type SearchCommandsConfig = {
   enabled: boolean;
   /** Summon the search box from anywhere with `openKeybind`, Spotlight-style. */

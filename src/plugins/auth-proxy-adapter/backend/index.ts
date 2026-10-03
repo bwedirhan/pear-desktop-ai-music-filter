@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import * as net from 'node:net';
 
 import is from 'electron-is';

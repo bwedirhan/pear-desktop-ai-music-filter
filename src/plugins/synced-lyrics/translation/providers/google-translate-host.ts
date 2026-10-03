@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const normalizeGoogleTranslateHost = (input?: string): string => {
   let host = (input || 'translate.google.com').trim();
   if (!host) return 'translate.google.com';

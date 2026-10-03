@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import i18next, { init, t as i18t, changeLanguage } from 'i18next';
 import { languageResources } from 'virtual:i18n';
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { Wave } from '@foobar404/wave';
 
 import { Visualizer } from './visualizer';

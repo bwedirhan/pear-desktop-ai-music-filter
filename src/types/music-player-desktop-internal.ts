@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import type { QueueItem } from '@/types/datahost-get-state';
 import type { PlayerOverlays } from '@/types/player-api-events';
 

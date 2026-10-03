@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createSignal } from 'solid-js';
 import * as z from 'zod';
 

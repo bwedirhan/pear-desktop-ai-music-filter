@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { ipcMain, Menu, nativeImage, screen, Tray } from 'electron';
 import is from 'electron-is';
 

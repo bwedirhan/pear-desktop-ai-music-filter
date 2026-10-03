@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { serve } from '@hono/node-server';
 import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';

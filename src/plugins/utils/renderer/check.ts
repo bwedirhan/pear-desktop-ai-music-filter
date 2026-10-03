@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export const isMusicOrVideoTrack = () => {
   for (const menuSelector of document.querySelectorAll<
     HTMLAnchorElement & {
