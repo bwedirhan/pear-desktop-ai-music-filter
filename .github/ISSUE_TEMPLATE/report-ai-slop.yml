@@ -1,0 +1,57 @@
+name: "AI Slop Bildirimi"
+description: "AI ile üretilmiş bir kanalı veya şarkıyı kara listeye eklemek için bildir"
+title: "[Report]: "
+labels: ["unverified-report"]
+body:
+  - type: dropdown
+    id: target_type
+    attributes:
+      label: "Bildirim türü"
+      options:
+        - "YouTube kanalı (önerilen)"
+        - "Tekil şarkı / video"
+    validations:
+      required: true
+
+  - type: input
+    id: target_url
+    attributes:
+      label: "YouTube / YouTube Music URL"
+      placeholder: "https://music.youtube.com/channel/UC..."
+    validations:
+      required: true
+
+  - type: input
+    id: youtube_id
+    attributes:
+      label: "Channel ID (UC...) veya Video ID"
+      description: "Opsiyonel. Boş bırakırsan maintainer URL'den çıkarır."
+
+  - type: dropdown
+    id: ai_evidence
+    attributes:
+      label: "Neden AI üretimi olduğunu düşünüyorsun?"
+      options:
+        - "Suno / Udio benzeri ses artefaktları"
+        - "Kanalda toplu / seri yükleme (spam deseni)"
+        - "Kapak görsellerinde AI izleri"
+        - "Başka bir platformda AI olarak etiketlenmiş"
+        - "Diğer (aşağıda açıkla)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: "Kanıt ve ek detaylar"
+      description: "Zaman damgası, kaynak linki, kanalın yükleme geçmişi vb."
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: "Onay"
+      options:
+        - label: "Bu kanal/şarkının blacklist.json içinde olmadığını kontrol ettim"
+          required: true
+        - label: "Gerçek bir sanatçıyı yanlışlıkla bildirmediğimden eminim"
+          required: true
