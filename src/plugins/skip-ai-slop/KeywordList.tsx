@@ -73,7 +73,7 @@ export const KeywordList = (props: { ctx: CustomFieldContext }) => {
         onChange={add}
         onInput={(e) => setDraft(e.currentTarget.value)}
         onKeyDown={(e) => e.key === 'Enter' && add()}
-        placeholder="Yeni kelime ekle... (Enter)"
+        placeholder="Add a keyword... (press Enter)"
         type="text"
         value={draft()}
       />

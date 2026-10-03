@@ -74,17 +74,17 @@ const Row = (props: {
     </span>
     <Show when={props.onAllow}>
       <button onClick={props.onAllow} style={linkBtn} type="button">
-        İzin ver
+        Allow
       </button>
     </Show>
     <Show when={props.onBlock}>
       <button onClick={props.onBlock} style={linkBtn} type="button">
-        Engelle
+        Block
       </button>
     </Show>
     <Show when={props.onRemove}>
       <button
-        aria-label="Kaldır"
+        aria-label="Remove"
         onClick={props.onRemove}
         style={xBtn}
         type="button"
@@ -102,7 +102,7 @@ export const BlockedList = (props: { ctx: CustomFieldContext }) => {
     <div>
       <Show
         when={list().length}
-        fallback={<Empty text="Engellenen kanal yok" />}
+        fallback={<Empty text="No blocked channels" />}
       >
         <For each={list()}>
           {(entry) => (
@@ -130,7 +130,7 @@ export const AllowedList = (props: { ctx: CustomFieldContext }) => {
     <div>
       <Show
         when={list().length}
-        fallback={<Empty text="İzin verilen kanal yok" />}
+        fallback={<Empty text="No allowed channels" />}
       >
         <For each={list()}>
           {(entry) => (
@@ -170,7 +170,7 @@ export const RecentList = (props: { ctx: CustomFieldContext }) => {
     <div>
       <Show
         when={list().length}
-        fallback={<Empty text="Henüz filtrelenen kanal yok" />}
+        fallback={<Empty text="No filtered channels yet" />}
       >
         <For each={list()}>
           {(entry) => (

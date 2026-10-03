@@ -8,13 +8,13 @@
  * Plugin shape (createPlugin, config, renderer.start/stop/onPlayerApiReady)
  * follows the "Creating a plugin" section of the pear-desktop README.
  *
- * STILL UNVERIFIED (test in the running app):
- *  - that api.getPlayerResponse() and api.nextVideo() exist on the player API object
- *  - that context.getConfig() and onConfigChange exist with these signatures
- *  - that fetch() to raw.githubusercontent.com is allowed by the page CSP
- *    (if not, move the download to the plugin's backend and pass it over IPC)
+ * Tested in `pnpm dev` (see README): videoId / channelId skipping and the real
+ * download from GitHub work. STILL UNVERIFIED:
+ *  - the packaged (production) build
  *  - that getPlayerResponse() already returns the NEW track when 'loadedmetadata'
  *    fires (if not, 'durationchange' below acts as a second chance)
+ *  - the "UNVERIFIED" notes further down (automix payload, feedback menu fields,
+ *    YouTube Music element names)
  *
  * To avoid depending on app-internal event names, track changes are detected with
  * standard <video> element events instead of app-specific custom events.
@@ -23,9 +23,9 @@ import { createPlugin } from '@/utils';
 
 import { AllowedList, BlockedList, RecentList } from './ChannelLists';
 import {
+  compileKeywords,
   defaultConfig,
   normalizeChannels,
-  normalizeKeywords,
   recordFiltered,
   type SkipAiSlopConfig,
 } from './config';
@@ -45,7 +45,7 @@ const stamp = (() => {
     );
   };
 })();
-stamp('eklenti kodu yüklendi');
+stamp('plugin code loaded');
 
 const BLACKLIST_URL =
   'https://raw.githubusercontent.com/bwedirhan/pear-desktop-ai-slop-filter/main/blacklist.json';
@@ -65,9 +65,14 @@ type Blacklist = {
 };
 type Config = SkipAiSlopConfig;
 
-let keywords: string[] = [];
+let keywords: RegExp[] = []; // whole-word matchers (see compileKeyword in config.ts)
 let allowIds = new Set<string>();
 let blockIds = new Set<string>();
+// Artists learned from a flagged uploader during this session only. Never saved
+// to the config: an uploader/distributor on the list must not permanently block
+// a real artist who just happens to be queued next to it. "Allow" in the
+// settings still overrides it (allow always wins).
+let sessionBlockIds = new Set<string>();
 // Bumped whenever anything that decides "flagged or not" changes (keywords,
 // allow/block lists, the downloaded list). Cached per-card verdicts are only
 // trusted while they carry the current number.
@@ -76,9 +81,7 @@ let savePluginConfig:
   | ((c: Partial<Omit<Config, 'enabled'>>) => Promise<void> | void)
   | null = null;
 const rebuildKeywords = () => {
-  keywords = normalizeKeywords(config.keywords)
-    .filter((k) => k.enabled)
-    .map((k) => k.text.toLowerCase());
+  keywords = compileKeywords(config.keywords);
   allowIds = new Set(normalizeChannels(config.userAllow).map((c) => c.id));
   blockIds = new Set(normalizeChannels(config.userBlock).map((c) => c.id));
   filterVersion++;
@@ -92,10 +95,14 @@ const addBlocked = (id: string, name: string) => {
   rebuildKeywords();
   void savePluginConfig?.({ userBlock: next });
 };
+const learnArtist = (id: string) => {
+  if (allowIds.has(id) || blockIds.has(id) || sessionBlockIds.has(id)) return;
+  sessionBlockIds.add(id);
+  filterVersion++;
+};
 const matchesKeyword = (text?: string) => {
   if (!text) return false;
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return keywords.some((k) => k.test(text));
 };
 
 let list: Blacklist | null = null;
@@ -117,6 +124,22 @@ const isValid = (d: any): d is Blacklist =>
 
 const has = (o: Record<string, Entry>, k: string) =>
   Object.prototype.hasOwnProperty.call(o, k);
+
+/**
+ * Matching only needs the IDs. Dropping names and reasons makes the cached copy
+ * (and the in-memory one) roughly 85% smaller, so it stays far from the
+ * localStorage quota, which early.ts also depends on.
+ */
+const slim = (d: Blacklist): Blacklist => {
+  const keysOnly = (o: Record<string, Entry>) =>
+    Object.fromEntries(Object.keys(o).map((k) => [k, {} as Entry]));
+  return {
+    version: d.version,
+    updated_at: d.updated_at,
+    channels: keysOnly(d.channels),
+    tracks: keysOnly(d.tracks),
+  };
+};
 
 /**
  * Reads the downloaded list from localStorage. Synchronous, so the list is
@@ -150,9 +173,12 @@ const downloadList = async (): Promise<boolean> => {
       console.warn('[skip-ai-slop] invalid or unsupported blacklist, keeping old list');
       return false;
     }
-    list = data;
+    list = slim(data);
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+      localStorage.setItem(
+        CACHE_KEY,
+        JSON.stringify({ data: list, ts: Date.now() }),
+      );
     } catch {
       /* storage full or unavailable: the list still works for this session */
     }
@@ -166,7 +192,7 @@ const downloadList = async (): Promise<boolean> => {
 /** A new list arrived: apply it to everything already on screen / playing. */
 const onListChanged = () => {
   filterVersion++;
-  stamp('GitHub listesi hazır');
+  stamp('GitHub list ready');
   lastCheckedId = null; // re-evaluate the playing track against the new list
   scanSearchResults();
   scanQueue();
@@ -188,6 +214,7 @@ const baseReason = (
   const ids = [videoId, ...channelIds].filter(Boolean) as string[];
   if (ids.some((id) => allowIds.has(id))) return null; // allow always wins
   if (ids.some((id) => blockIds.has(id))) return 'user-block';
+  if (ids.some((id) => sessionBlockIds.has(id))) return 'learned-artist';
   if (matchesKeyword(title)) return 'keyword:title';
   if (matchesKeyword(author)) return 'keyword:author';
   if (!list) return null;
@@ -196,6 +223,11 @@ const baseReason = (
   return null;
 };
 
+const matchedChannel = (channelIds: string[]): string | undefined =>
+  channelIds.find(
+    (c) => (list && has(list.channels, c)) || sessionBlockIds.has(c),
+  );
+
 const reasonToSkip = (
   videoId?: string,
   channelIds: string[] = [],
@@ -203,8 +235,19 @@ const reasonToSkip = (
   author?: string,
 ): string | null => {
   const reason = baseReason(videoId, channelIds, title, author);
-  if (reason && reason !== 'user-block' && channelIds[0]) {
-    recordFiltered({ id: channelIds[0], name: author || channelIds[0], reason });
+  if (reason && reason !== 'user-block') {
+    // Record the channel that actually matched, not just the first one on the
+    // card: otherwise "Allow" in the settings could allow the wrong channel.
+    const matched =
+      reason === 'channel' || reason === 'learned-artist'
+        ? matchedChannel(channelIds)
+        : undefined;
+    const id = matched ?? channelIds[0];
+    if (id) {
+      const listedName =
+        reason === 'channel' && list ? list.channels[id]?.name : undefined;
+      recordFiltered({ id, name: listedName || author || id, reason });
+    }
   }
   return reason;
 };
@@ -318,7 +361,17 @@ const scanQueue = () => {
   // queue changes after every removal. The playing track is never removed.
   removingFromQueue = true;
   let removed = 0;
+  // One failed dispatch must not leave removingFromQueue stuck on true, which
+  // would switch queue filtering off until the plugin is restarted.
   const step = () => {
+    try {
+      stepOnce();
+    } catch (err) {
+      console.warn('[skip-ai-slop] queue removal failed, stopping', err);
+      removingFromQueue = false;
+    }
+  };
+  const stepOnce = () => {
     const queueEl = document.querySelector<QueueEl>('#queue');
     if (!active || !api || !queueEl) {
       removingFromQueue = false;
@@ -716,7 +769,9 @@ const feedbackTick = async () => {
         feedbackSent++;
         feedbackDone.add(next.key);
         saveFeedbackDone();
-        addBlocked(next.key, next.name);
+        // the key falls back to a videoId/token when a card has no channel;
+        // only real channel IDs belong in the channel block list
+        if (next.key.startsWith('UC')) addBlocked(next.key, next.name);
         console.info(
           `[skip-ai-slop] sent "not interested" for ${next.key} (${next.reason})`,
         );
@@ -757,8 +812,8 @@ const scanSearchResults = () => {
   const cards = document.querySelectorAll<HTMLElement>(SEARCH_ITEMS);
   // If cards were already on the page at the first scan, the plugin started
   // after the page drew them. That gap is what shows up as "slow".
-  stamp('ilk sayfa taraması', ` (sayfada ${cards.length} kart vardı)`);
-  if (cards.length) stamp('ilk kart görüldü', ` (${cards.length} kart)`);
+  stamp('first page scan', ` (${cards.length} cards already on the page)`);
+  if (cards.length) stamp('first card seen', ` (${cards.length} cards)`);
   for (const el of cards) {
     const data = (el as any).data;
     let flagged = false;
@@ -798,7 +853,7 @@ const scanSearchResults = () => {
       el.setAttribute(HIDDEN_ATTR, '');
       el.style.display = 'none';
       hiddenCount++;
-      stamp('ilk kart gizlendi');
+      stamp('first card hidden');
     } else if (!flagged && isHidden) {
       el.removeAttribute(HIDDEN_ATTR);
       el.style.removeProperty('display');
@@ -848,8 +903,10 @@ const check = () => {
     artistId &&
     !queued!.channelIds.some((c) => list && has(list.channels, c))
   ) {
-    addBlocked(artistId, queued!.author);
-    console.info(`[skip-ai-slop] learned artist ${artistId} (${queued!.author})`);
+    learnArtist(artistId);
+    console.info(
+      `[skip-ai-slop] learned artist ${artistId} (${queued!.author}), this session only`,
+    );
     scanQueue();
     // fallback: if the same track is still playing shortly after, skip it
     setTimeout(() => {
@@ -967,45 +1024,46 @@ export default createPlugin({
     {
       type: 'switch',
       key: 'hideInPages',
-      label: () => 'Sayfalarda gizle',
+      label: () => 'Hide in pages',
       description: () =>
-        'Arama, ana sayfa, keşfet, kütüphane ve listelerde slop şarkıları gizler',
+        'Hides AI slop tracks in search, home, explore, library and playlists',
     },
     {
       type: 'switch',
       key: 'reportFeedback',
-      label: () => "Ana sayfa önerilerinde YouTube'a 'ilgilenmiyorum' gönder",
+      label: () => 'Send "Not interested" to YouTube for home recommendations',
       description: () =>
-        'Hesabına kalıcı geri bildirim gönderir (yavaş ve sınırlı). Varsayılan kapalı',
+        'Sends permanent feedback to your YouTube account (slow and limited). Off by default',
     },
     {
       type: 'custom',
       key: 'keywords',
-      label: () => 'Engellenecek kelimeler',
-      description: () => 'Başlığında veya kanal adında geçen şarkıları atlar',
+      label: () => 'Blocked keywords',
+      description: () =>
+        'Skips tracks whose title or channel name contains one of these words (whole words only)',
       component: 'skip-ai-slop.keywords',
     },
     {
       type: 'custom',
       key: 'userBlock',
-      label: () => 'Engellenen kanallar',
+      label: () => 'Blocked channels',
       description: () =>
-        "\"Sanatçıyı önerme\" dediklerin ve eklentinin YouTube'a bildirdikleri",
+        'Channels you marked "Don\'t recommend", plus ones the plugin reported to YouTube',
       component: 'skip-ai-slop.blocked',
     },
     {
       type: 'custom',
       key: 'recent',
-      label: () => 'Son filtrelenenler',
+      label: () => 'Recently filtered',
       description: () =>
-        'Kelime veya listeyle yakalanan kanallar. Yanlış eşleşme varsa İzin ver',
+        'Channels caught by a keyword or the community list. Press Allow if one is a false match',
       component: 'skip-ai-slop.recent',
     },
     {
       type: 'custom',
       key: 'userAllow',
-      label: () => 'İzin verilen kanallar',
-      description: () => 'Hiçbir koşulda filtrelenmez',
+      label: () => 'Allowed channels',
+      description: () => 'Never filtered, no matter what',
       component: 'skip-ai-slop.allowed',
     },
   ],
@@ -1029,13 +1087,13 @@ export default createPlugin({
       allowed: AllowedList,
     },
     async start(context) {
-      stamp('start çağrıldı');
+      stamp('start called');
       savePluginConfig = context.setConfig;
       const cfg = await context.getConfig();
       config = { ...defaultConfig, ...cfg };
       rebuildKeywords();
       active = true;
-      stamp('ayarlar alındı');
+      stamp('config loaded');
 
       // The app starts renderer plugins one after another and waits for each
       // start() to finish, and it only hands out the player API once all of them
@@ -1073,6 +1131,7 @@ export default createPlugin({
         refreshTimer = null;
       }
       recentSkips = [];
+      sessionBlockIds = new Set();
       detach();
     },
   },

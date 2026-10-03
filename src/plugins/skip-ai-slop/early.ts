@@ -20,7 +20,7 @@
  * Nothing here touches `document` at import time (index.ts also imports this
  * file into the renderer bundle for the two constants below).
  */
-import { normalizeChannels, normalizeKeywords } from './config';
+import { compileKeywords, normalizeChannels } from './config';
 
 export const EARLY_ATTR = 'data-skip-ai-slop-early';
 export const READY_ATTR = 'data-skip-ai-slop-ready';
@@ -48,7 +48,7 @@ const VIDEO_RE = /[?&]v=([\w-]{11})/;
 type Rules = {
   allow: Set<string>;
   block: Set<string>;
-  keywords: string[];
+  keywords: RegExp[]; // whole-word matchers, see compileKeyword in config.ts
   channels: Set<string>; // downloaded list
   tracks: Set<string>; // downloaded list
 };
@@ -61,9 +61,7 @@ const buildRules = (cfg: any): Rules => {
   const out: Rules = {
     allow: new Set(normalizeChannels(cfg.userAllow).map((c) => c.id)),
     block: new Set(normalizeChannels(cfg.userBlock).map((c) => c.id)),
-    keywords: normalizeKeywords(cfg.keywords)
-      .filter((k) => k.enabled)
-      .map((k) => k.text.toLowerCase()),
+    keywords: compileKeywords(cfg.keywords),
     channels: new Set(),
     tracks: new Set(),
   };
@@ -95,13 +93,13 @@ const isFlagged = (card: Element, r: Rules): boolean => {
     if (ch) channelIds.push(ch[1]);
     const v = VIDEO_RE.exec(href);
     if (v) videoIds.push(v[1]);
-    const text = a.textContent?.trim().toLowerCase();
+    const text = a.textContent?.trim();
     if (text) texts.push(text);
   }
   const ids = [...videoIds, ...channelIds];
   if (ids.some((id) => r.allow.has(id))) return false; // allow always wins
   if (ids.some((id) => r.block.has(id))) return true;
-  if (r.keywords.length && texts.some((t) => r.keywords.some((k) => t.includes(k)))) {
+  if (r.keywords.length && texts.some((t) => r.keywords.some((k) => k.test(t)))) {
     return true;
   }
   if (channelIds.some((id) => r.channels.has(id))) return true;

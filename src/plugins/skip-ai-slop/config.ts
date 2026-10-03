@@ -33,6 +33,27 @@ export const normalizeKeywords = (raw: unknown): KeywordEntry[] => {
   return out;
 };
 
+/**
+ * Turns a keyword into a matcher that finds it as a WHOLE word (or phrase),
+ * case-insensitively: "ai" matches "AI Cover" but not "Mai" or "Tchaikovsky".
+ * Shared by index.ts and early.ts so both judge keywords the same way.
+ * The regex has no `g` flag, so `.test()` keeps no state between calls.
+ */
+export const compileKeyword = (text: string): RegExp | null => {
+  const t = text.trim();
+  if (!t) return null;
+  const body = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  const edge = '[\\p{L}\\p{N}]';
+  return new RegExp(`(?<!${edge})${body}(?!${edge})`, 'iu');
+};
+
+/** Enabled keywords of a stored config, compiled. */
+export const compileKeywords = (raw: unknown): RegExp[] =>
+  normalizeKeywords(raw)
+    .filter((k) => k.enabled)
+    .map((k) => compileKeyword(k.text))
+    .filter((r): r is RegExp => !!r);
+
 /** Accepts old plain-ID strings as well as { id, name } entries. */
 export const normalizeChannels = (raw: unknown): ChannelEntry[] => {
   if (!Array.isArray(raw)) return [];
