@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 export type KeywordEntry = { text: string; enabled: boolean };
 export type ChannelEntry = { id: string; name: string };
 

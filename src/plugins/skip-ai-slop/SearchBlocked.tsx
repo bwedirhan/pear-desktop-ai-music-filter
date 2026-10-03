@@ -1,3 +1,4 @@
+// Copyright (c) 2026 bwedirhan. MIT License.
 import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
 
 import {
