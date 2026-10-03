@@ -495,20 +495,6 @@ const SEARCH_ITEMS = [
   .join(', ');
 const HIDDEN_ATTR = 'data-skip-ai-slop';
 
-// Hiding cards can make the page shorter than the window. YouTube Music's <body>
-// (black) is only as tall as its content, and below it the page shows <html>,
-// whose background the album-color theme paints, which looked like a broken
-// layout. Keeping <body> at least window-high hides that seam.
-const FILL_STYLE_ID = 'skip-ai-slop-fill';
-const addFillStyle = () => {
-  if (document.getElementById(FILL_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = FILL_STYLE_ID;
-  style.textContent = 'body{min-height:100vh;box-sizing:border-box}';
-  (document.head ?? document.documentElement).appendChild(style);
-};
-const removeFillStyle = () => document.getElementById(FILL_STYLE_ID)?.remove();
-
 type SearchInfo = {
   videoIds: string[];
   channelIds: string[];
@@ -963,13 +949,11 @@ const startPageScan = () => {
   }
   // the renderer is watching the page now: tell the preload scanner to stand down
   document.documentElement.setAttribute(READY_ATTR, '');
-  addFillStyle();
   scanSearchResults();
 };
 
 const stopPageScan = () => {
   document.documentElement.removeAttribute(READY_ATTR);
-  removeFillStyle();
   pageObserver?.disconnect();
   pageObserver = null;
   if (pageTimer) {
